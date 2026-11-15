@@ -40,7 +40,7 @@ export async function bootstrap() {
   auth.setReady();
 }
 
-export type LoginResult = { ok: true; offline: boolean; mustChangePassword: boolean } | { ok: false; error: string; offlineUnavailable?: boolean };
+export type LoginResult = { ok: true; offline: boolean; mustChangePassword: boolean } | { ok: false; error: string; code?: string; offlineUnavailable?: boolean };
 
 export async function signIn(username: string, password: string, portal?: 'staff' | 'parent' | 'student'): Promise<LoginResult> {
   try {
@@ -61,7 +61,7 @@ export async function signIn(username: string, password: string, portal?: 'staff
       await useOutbox.getState().refresh();
       return { ok: true, offline: true, mustChangePassword: false };
     }
-    return { ok: false, error: e instanceof ApiError ? e.message : 'Sign-in failed' };
+    return { ok: false, error: e instanceof ApiError ? e.message : 'Sign-in failed', ...(e instanceof ApiError ? { code: e.code } : {}) };
   }
 }
 

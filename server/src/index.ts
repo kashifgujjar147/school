@@ -2,6 +2,7 @@ import { networkInterfaces } from 'node:os';
 import { env, APP_VERSION } from './config/env.js';
 import { connectDatabase, disconnectDatabase } from './config/db.js';
 import { assertInstallIdentity } from './services/settings.js';
+import { initialiseSchoolData } from './services/setup.js';
 import { SchoolSettings } from './models/index.js';
 import { createApp } from './app.js';
 import { workers } from './jobs/workers.js';
@@ -12,8 +13,14 @@ async function main() {
   await connectDatabase();
   await assertInstallIdentity();
   if (!(await SchoolSettings.exists({ _id: 'school' }))) {
-    logger.error('This database has not been initialised. Run: npm run init:school');
-    process.exit(2);
+    if (!env.SETUP_TOKEN) {
+      logger.error('This database has not been initialised. Run: npm run init:school (or set SETUP_TOKEN to use the web setup at /setup)');
+      process.exit(2);
+    }
+    // Web setup enabled: create the school's base records (no accounts). The first administrator is
+    // then created at /setup with the SETUP_TOKEN.
+    await initialiseSchoolData({ name: process.env.INIT_SCHOOL_NAME, timeZone: process.env.INIT_TIMEZONE });
+    logger.warn('Empty database initialised for web setup. Open /setup to create the first administrator.');
   }
   await runMigrations();
   const app = createApp();

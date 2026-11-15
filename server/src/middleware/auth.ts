@@ -24,7 +24,8 @@ export async function attachUser(req: Request, _res: Response, next: NextFunctio
     const s = await loadSession(token);
     if (s) {
       const u = await User.findById(s.userId).lean();
-      if (u && u.status === 'active' && !u.deletedAt) {
+      // Pending / unassigned (self-registered, not yet approved) accounts never get a working session.
+      if (u && u.status === 'active' && u.role !== 'unassigned' && !u.deletedAt) {
         req.user = {
           id: u._id, username: u.username, fullName: u.fullName, role: u.role as Role,
           permissions: effectivePermissions(u.role as Role, env.PACKAGE, u.extraPermissions as Permission[], u.revokedPermissions as Permission[]),

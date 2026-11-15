@@ -1,11 +1,10 @@
 ﻿import { passwordSchema } from '@sms/shared';
 import { env } from '../config/env.js';
 import { connectDatabase, disconnectDatabase } from '../config/db.js';
-import { AcademicSession, NotificationTemplate, SchoolSettings, User } from '../models/index.js';
+import { SchoolSettings, User } from '../models/index.js';
 import { generatePassword, hashPassword } from '../security/crypto.js';
 import { createVersioned } from '../services/repo.js';
-import { DEFAULT_TEMPLATES } from '../services/notifications.js';
-import { LATEST_SCHEMA } from './migrations.js';
+import { initialiseSchoolData } from '../services/setup.js';
 
 /**
  * First-run initialisation of ONE school's database:
@@ -22,18 +21,7 @@ async function main() {
     throw new Error(`Database "${env.MONGODB_DB_NAME}" is already initialised for installation "${existing.installId}". Nothing changed.`);
   }
   const name = process.env.INIT_SCHOOL_NAME || 'My School';
-  const tz = process.env.INIT_TIMEZONE || 'Asia/Karachi';
-  new Intl.DateTimeFormat('en', { timeZone: tz });
-  await createVersioned(SchoolSettings, { _id: 'school', installId: env.SCHOOL_INSTALL_ID, name, timeZone: tz, schemaVersion: LATEST_SCHEMA });
-
-  const year = new Date().getFullYear();
-  const session = await createVersioned(AcademicSession, { name: `${year}-${year + 1}`, startDate: `${year}-04-01`, endDate: `${year + 1}-03-31`, isDefault: true });
-  await SchoolSettings.updateOne({ _id: 'school' }, { defaultSessionId: session._id });
-
-  for (const [event, t] of Object.entries(DEFAULT_TEMPLATES)) {
-    await createVersioned(NotificationTemplate, { event, language: 'en', body: t.en, active: true });
-    await createVersioned(NotificationTemplate, { event, language: 'ur', body: t.ur, active: true });
-  }
+  await initialiseSchoolData({ name, timeZone: process.env.INIT_TIMEZONE || 'Asia/Karachi' });
 
   const username = (process.env.INIT_PRINCIPAL_USERNAME || 'principal').toLowerCase();
   let password = process.env.INIT_PRINCIPAL_PASSWORD || '';
@@ -46,8 +34,6 @@ async function main() {
     passwordHash: await hashPassword(password), mustChangePassword: false
   });
 
-  // Ensure all indexes exist before first use.
-  for (const m of [SchoolSettings, User, AcademicSession, NotificationTemplate]) await m.syncIndexes();
 
   console.log('\n========================================================');
   console.log(` School initialised: ${name}`);

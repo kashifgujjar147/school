@@ -7,27 +7,30 @@ import { updateVersioned } from '../services/repo.js';
 async function main() {
   await connectDatabase();
 
-  const user = await User.findOne({
+  const users = await User.find({
     username: 'principal',
     role: 'principal',
     deletedAt: null
   });
 
-  if (!user) {
-    throw new Error('Principal account not found. No changes made.');
+  if (users.length !== 1) {
+    throw new Error(
+      `Expected exactly one principal account; found ${users.length}. No changes made.`
+    );
   }
 
+  const user = users[0];
   const password = generatePassword();
   const check = passwordSchema.safeParse(password);
 
   if (!check.success) {
-    throw new Error('Generated password did not pass password validation.');
+    throw new Error('Generated password failed validation. No changes made.');
   }
 
   await updateVersioned(User, String(user._id), {
     passwordHash: await hashPassword(password),
     passwordChangedAt: new Date(),
-    mustChangePassword: false,
+    mustChangePassword: true,
     failedLogins: 0,
     lockedUntil: null
   });
@@ -41,9 +44,10 @@ async function main() {
 }
 
 main()
-  .then(disconnectDatabase)
-  .catch(async (error) => {
+  .catch((error) => {
     console.error('Password reset failed:', error.message);
-    await disconnectDatabase();
     process.exitCode = 1;
+  })
+  .finally(async () => {
+    await disconnectDatabase();
   });

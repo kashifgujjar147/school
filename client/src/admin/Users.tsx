@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, KeyRound, Lock, LogOut } from 'lucide-react';
-import { PERMISSIONS, STAFF_ROLES as ROLES, type Permission } from '@sms/shared';
+import { APPROVABLE_ROLES, PERMISSIONS, STAFF_ROLES as ROLES, type Permission } from '@sms/shared';
 import { useGet, usePaged, useAction } from '../hooks/useApi';
 import { useT, useFormat, type TKey } from '../i18n';
 import { useAuth } from '../store/auth';
@@ -32,6 +32,48 @@ function CreateUser({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
   );
 }
 
+/**
+ * Approval of a self-registered (pending) account: pick its role and activate it. Parent and
+ * student accounts must be linked to their guardian / student record. The server enforces the
+ * same rules (principal-only for principal, no granting beyond your own permissions).
+ */
+function ApprovePanel({ u, onDone, onError }: { u: UserRow; onDone: (text: string) => void; onError: (e: unknown) => void }) {
+  const t = useT();
+  const me = useAuth((s) => s.user);
+  const can = useAuth((s) => s.can);
+  const pkg = useAuth((s) => s.config?.package);
+  const roles = APPROVABLE_ROLES.filter((r) =>
+    (r !== 'principal' || me?.role === 'principal') &&
+    (r !== 'parent' || (pkg === 'standard' && can('guardians.manage'))) &&
+    (r !== 'student' || can('students.manage')));
+  const [role, setRole] = useState<string>('');
+  const [search, setSearch] = useState('');
+  const [linkId, setLinkId] = useState('');
+  const linkUrl = role === 'parent' ? `/api/guardians${qs({ page: 1, pageSize: 20, q: search })}` : role === 'student' ? `/api/students${qs({ page: 1, pageSize: 20, q: search })}` : null;
+  const records = usePaged<{ _id: string; fullName: string; admissionNumber?: string; phone?: string }>(linkUrl);
+  const act = useAction(async (fn: () => Promise<unknown>) => fn(), ['/api/users']);
+  const needsLink = role === 'parent' || role === 'student';
+  const approve = () => act.mutate(() => post(`/api/users/${u._id}/approve`, {
+    role, version: u.version, ...(role === 'parent' ? { guardianId: linkId } : {}), ...(role === 'student' ? { studentId: linkId } : {})
+  }), { onSuccess: () => onDone(t('saved')), onError });
+  const reject = () => act.mutate(() => post(`/api/users/${u._id}/reject`), { onSuccess: () => onDone(t('saved')), onError });
+  return (
+    <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4" data-testid="approve-panel">
+      <div><p className="font-medium">{t('approveAccount')}</p><p className="text-sm text-ink-soft">{t('approveHint')}</p></div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Select label={t('role')} value={role} onChange={(e) => { setRole(e.target.value); setLinkId(''); setSearch(''); }} placeholder="—" options={roles.map((r) => ({ value: r, label: t(r) }))} />
+        {needsLink && <Input label={role === 'parent' ? t('guardianRecord') : t('studentRecord')} placeholder={t('searchToLink')} value={search} onChange={(e) => { setSearch(e.target.value); setLinkId(''); }} />}
+        {needsLink && <Select className="sm:col-span-2" label={role === 'parent' ? t('guardianRecord') : t('studentRecord')} value={linkId} onChange={(e) => setLinkId(e.target.value)} placeholder="—"
+          options={(records.data?.items ?? []).map((r) => ({ value: r._id, label: [r.fullName, r.admissionNumber, r.phone].filter(Boolean).join(' · ') }))} />}
+      </div>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="secondary" loading={act.isPending} onClick={reject}>{t('reject')}</Button>
+        <Button loading={act.isPending} disabled={!role || (needsLink && !linkId)} onClick={approve}>{t('approve')}</Button>
+      </div>
+    </div>
+  );
+}
+
 function UserPanel({ id, onClose }: { id: string; onClose: () => void }) {
   const t = useT(); const f = useFormat();
   const me = useAuth((s) => s.user);
@@ -57,6 +99,7 @@ function UserPanel({ id, onClose }: { id: string; onClose: () => void }) {
   const canManage = can('users.manage');
   // Principal accounts can only be managed by a principal (enforced by the server as well).
   const locked = !canManage || (u.role === 'principal' && me?.role !== 'principal');
+  const pendingApproval = u.status === 'pending' || u.role === 'unassigned';
   const pf = profile ?? { fullName: u.fullName, email: u.email ?? '', phone: u.phone ?? '' };
   const profileChanged = pf.fullName.trim() !== u.fullName || pf.email.trim() !== (u.email ?? '') || pf.phone.trim() !== (u.phone ?? '');
   const toggle = (list: Permission[], p: Permission) => (list.includes(p) ? list.filter((x) => x !== p) : [...list, p]);
@@ -76,10 +119,11 @@ function UserPanel({ id, onClose }: { id: string; onClose: () => void }) {
               onSuccess: () => { setProfile(null); setMsg({ kind: 'success', text: t('saved') }); void q.refetch(); }, onError
             })}>{t('save')}</Button></div>}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          {pendingApproval && canManage && <ApprovePanel u={u} onError={onError} onDone={(text) => { setMsg({ kind: 'success', text }); void q.refetch(); }} />}
+          {!pendingApproval && <div className="grid gap-4 sm:grid-cols-2">
             <Select label={t('role')} value={u.role} disabled={self || locked}onChange={(e) => run(() => patch(`/api/users/${id}`, { role: e.target.value, version: u.version }), t('saved'))} options={ROLES.filter((r) => r !== 'principal' || me?.role === 'principal').map((r) => ({ value: r, label: t(r) }))} />
             <Select label={t('status')} value={u.status} disabled={self || locked}onChange={(e) => run(() => patch(`/api/users/${id}`, { status: e.target.value, version: u.version }), t('saved'))} options={['active', 'inactive', 'suspended'].map((s) => ({ value: s, label: t(s as TKey) }))} />
-          </div>
+          </div>}
           <div><p className="label">{t('assignedClassrooms')}</p>
             {u.assignments.length === 0 ? <p className="text-sm text-ink-soft">—</p> : <ul className="space-y-1 text-sm">{u.assignments.map((a) => <li key={a._id} className="flex justify-between"><span>{a.classroomName}{a.isHomeroom ? ' ★' : ''}</span><span className="text-xs text-ink-faint">{f.date(a.startedAt)} → {a.endedAt ? f.date(a.endedAt) : t('active')}</span></li>)}</ul>}
           </div>
@@ -121,16 +165,23 @@ function UserPanel({ id, onClose }: { id: string; onClose: () => void }) {
 export default function UsersPage() {
   const t = useT(); const f = useFormat();
   const can = useAuth((s) => s.can);
-  const [page, setPage] = useState(1); const [q, setQ] = useState(''); const [role, setRole] = useState('');
-  const list = usePaged<UserRow>(`/api/users${qs({ page, pageSize: 25, q, role })}`);
+  const [page, setPage] = useState(1); const [q, setQ] = useState(''); const [role, setRole] = useState(''); const [status, setStatus] = useState('');
+  const list = usePaged<UserRow>(`/api/users${qs({ page, pageSize: 25, q, role, status })}`);
+  const pendingCount = usePaged<UserRow>(`/api/users${qs({ page: 1, pageSize: 1, status: 'pending' })}`).data?.meta.total ?? 0;
   const [creating, setCreating] = useState(false); const [open, setOpen] = useState<string | null>(null);
   return (
     <div>
       <PageHeader title={t('navUsers')} actions={can('users.manage') && <Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" />{t('addUser')}</Button>} />
       <Card padded={false}>
-        <div className="grid gap-3 border-b border-surface-line p-4 sm:grid-cols-3">
+        {pendingCount > 0 && status !== 'pending' && (
+          <div className="border-b border-surface-line p-4"><Alert kind="warning">
+            <button type="button" className="font-medium underline" onClick={() => { setStatus('pending'); setRole(''); setPage(1); }}>{t('pendingApproval')}: {pendingCount}</button>
+          </Alert></div>
+        )}
+        <div className="grid gap-3 border-b border-surface-line p-4 sm:grid-cols-4">
           <Input className="sm:col-span-2" placeholder={t('search')} value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
-          <Select value={role} onChange={(e) => { setRole(e.target.value); setPage(1); }} placeholder={`${t('role')}: ${t('all')}`} options={ROLES.map((r) => ({ value: r, label: t(r) }))} />
+          <Select value={role} onChange={(e) => { setRole(e.target.value); setPage(1); }} placeholder={`${t('role')}: ${t('all')}`} options={[...ROLES, 'parent', 'student', 'unassigned'].map((r) => ({ value: r, label: t(r as TKey) }))} />
+          <Select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} placeholder={`${t('status')}: ${t('all')}`} options={['active', 'pending', 'inactive', 'suspended'].map((s) => ({ value: s, label: t(s === 'pending' ? 'pendingApproval' : s as TKey) }))} />
         </div>
         {list.isLoading ? <Spinner /> : !list.data?.items.length ? <EmptyState /> : (
           <>
@@ -138,7 +189,7 @@ export default function UsersPage() {
               <thead><tr><th>{t('fullName')}</th><th>{t('username')}</th><th>{t('role')}</th><th>{t('status')}</th><th>{t('lastLogin')}</th><th /></tr></thead>
               <tbody>{list.data.items.map((u) => (
                 <tr key={u._id}><td className="font-medium">{u.fullName}</td><td className="font-mono text-xs">{u.username}</td><td>{t(u.role as TKey)}</td>
-                  <td><Badge color={STATUS_TONE[u.status]}>{t(u.status as TKey)}</Badge>{u.lockedUntil && new Date(u.lockedUntil) > new Date() && <Badge color="red"><Lock className="h-3 w-3" /></Badge>}</td>
+                  <td><Badge color={STATUS_TONE[u.status]}>{t(u.status === 'pending' ? 'pendingApproval' : u.status as TKey)}</Badge>{u.lockedUntil && new Date(u.lockedUntil) > new Date() && <Badge color="red"><Lock className="h-3 w-3" /></Badge>}</td>
                   <td className="text-xs">{f.dateTime(u.lastLoginAt)}</td><td className="text-end"><Button variant="ghost" onClick={() => setOpen(u._id)}>{t('edit')}</Button></td></tr>
               ))}</tbody>
             </Table>

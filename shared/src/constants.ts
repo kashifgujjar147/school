@@ -3,7 +3,11 @@
 export const ATTENDANCE_STATUSES = ['present', 'absent', 'late', 'leave'] as const;
 export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
 
-export const ROLES = ['principal', 'admin', 'teacher', 'staff', 'parent', 'student'] as const;
+/**
+ * 'unassigned' is the role of a self-registered account that an administrator has not reviewed yet.
+ * It carries no permissions and can never sign in (its status stays 'pending' until approved).
+ */
+export const ROLES = ['principal', 'admin', 'teacher', 'staff', 'parent', 'student', 'unassigned'] as const;
 export type Role = (typeof ROLES)[number];
 /** Roles managed on the Users page. Parent accounts are created from a guardian record instead. */
 export const STAFF_ROLES = ['principal', 'admin', 'teacher', 'staff'] as const satisfies readonly Role[];
@@ -22,7 +26,12 @@ export type AppMode = (typeof APP_MODES)[number];
 export const STUDENT_STATUSES = ['active', 'archived', 'transferred', 'graduated', 'suspended'] as const;
 export type StudentStatus = (typeof STUDENT_STATUSES)[number];
 
-export const USER_STATUSES = ['active', 'inactive', 'suspended'] as const;
+/** 'pending' = self-registered, waiting for an administrator to assign a role (cannot sign in). */
+export const USER_STATUSES = ['active', 'inactive', 'suspended', 'pending'] as const;
+/** Statuses an administrator may set directly. 'pending' is only ever set by self-registration. */
+export const MANAGEABLE_USER_STATUSES = ['active', 'inactive', 'suspended'] as const satisfies readonly (typeof USER_STATUSES)[number][];
+/** Roles a pending (self-registered) account can be approved into. */
+export const APPROVABLE_ROLES = ['principal', 'admin', 'teacher', 'staff', 'parent', 'student'] as const;
 export type UserStatus = (typeof USER_STATUSES)[number];
 
 export const CORRECTION_STATUSES = ['pending', 'approved', 'rejected'] as const;

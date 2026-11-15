@@ -22,7 +22,7 @@ publicRouter.get('/config', h(async (_req, res) => {
     schoolName: s.name, logoUrl: s.logoPath ?? null, faviconUrl: s.faviconPath ?? null,
     primaryColor: s.primaryColor, accentColor: s.accentColor, defaultLanguage: s.defaultLanguage as 'en' | 'ur',
     timeZone: s.timeZone, dateFormat: s.dateFormat, package: env.PACKAGE, mode: env.APP_MODE,
-    websiteEnabled: Boolean(s.website?.enabled), version: APP_VERSION
+    websiteEnabled: Boolean(s.website?.enabled), registrationEnabled: env.REGISTRATION_ENABLED, version: APP_VERSION
   };
   ok(res, cfg);
 }));

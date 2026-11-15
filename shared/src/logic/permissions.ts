@@ -50,7 +50,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   // A parent account sees only the children linked to its guardian record (enforced per request).
   parent: ['parent.portal'],
   // A student account sees only its own class timetable and notices (enforced per request).
-  student: ['student.portal']
+  student: ['student.portal'],
+  // Self-registered account awaiting review: no access to anything.
+  unassigned: []
 };
 
 /** Permissions that only exist in the Standard package. */
@@ -68,7 +70,7 @@ export function effectivePermissions(
   revoked: Permission[] = []
 ): Permission[] {
   // Parents never receive extra staff permissions, and staff never receive parent-only ones.
-  const allowedExtra = role === 'parent' || role === 'student' ? [] : extra.filter((p) => !PARENT_ONLY.includes(p));
+  const allowedExtra = role === 'parent' || role === 'student' || role === 'unassigned' ? [] : extra.filter((p) => !PARENT_ONLY.includes(p));
   const set = new Set<Permission>([...(ROLE_PERMISSIONS[role] ?? []), ...allowedExtra]);
   for (const r of revoked) set.delete(r);
   if (pkg !== 'standard') for (const p of STANDARD_ONLY) set.delete(p);

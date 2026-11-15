@@ -30,6 +30,8 @@ export interface PublicConfig {
   package: PackageTier;
   mode: AppMode;
   websiteEnabled: boolean;
+  /** Public self-registration ("Create account") is available on the sign-in page. */
+  registrationEnabled: boolean;
   version: string;
 }
 

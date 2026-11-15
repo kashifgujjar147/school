@@ -4,7 +4,7 @@ import type { Permission } from '@sms/shared';
 import { useAuth } from './store/auth';
 import { AdminLayout, ParentLayout, StudentLayout, TeacherLayout } from './components/Layout';
 import { Spinner, EmptyState } from './components/ui';
-import { LoginPage, ChangePasswordPage, ResetPasswordPage, homeFor } from './pages/Auth';
+import { LoginPage, ChangePasswordPage, ResetPasswordPage, RegisterPage, SetupPage, homeFor } from './pages/Auth';
 
 // The public website is its own chunk: visitors never download the dashboards, and staff never download the site.
 const PublicSite = lazy(() => import('./public/PublicSite').then((m) => ({ default: m.PublicSite })));
@@ -49,6 +49,8 @@ function RequireAuth({ children, perm, area }: { children: ReactNode; perm?: Per
   const { user, can } = useAuth();
   const loc = useLocation();
   if (!user) return <Navigate to={`${area === 'parent' ? '/parent/login' : area === 'student' ? '/student/login' : '/login'}?next=${encodeURIComponent(loc.pathname + loc.search)}`} replace />;
+  // Defence in depth: the server never issues a session to an unapproved account.
+  if (user.role === 'unassigned') return <EmptyState title="Account pending approval">An administrator must assign your role before you can use the system.</EmptyState>;
   // Staff, parents and students each stay in their own area.
   if (area !== undefined && areaOf(user.role) !== area) return <Navigate to={homeFor(user.role)} replace />;
   if (perm && !can(perm)) return <EmptyState title="403">You do not have access to this page.</EmptyState>;
@@ -82,6 +84,8 @@ export function App() {
         <Route path="/" element={<Home />} />
         <Route path="/site/*" element={<PublicSite />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/setup" element={<SetupPage />} />
         <Route path="/parent/login" element={<LoginPage portal="parent" />} />
         <Route path="/student/login" element={<LoginPage portal="student" />} />
         <Route path="/verify/:token" element={<Verify />} />

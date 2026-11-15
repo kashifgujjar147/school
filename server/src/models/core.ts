@@ -63,6 +63,8 @@ const schoolSettingsSchema = new Schema({
   fees: { type: feeSettingsSchema, default: () => ({}) },
   studentCustomFields: { type: [{ key: String, label: String, _id: false }], default: [] },
   schemaVersion: { type: Number, default: 1 },
+  /** Set once the first administrator has been created through the web setup (/setup). */
+  setupCompletedAt: { type: Date, default: null },
   ...syncedDef
 }, baseOptions);
 syncedFields(schoolSettingsSchema);
@@ -98,6 +100,11 @@ const userSchema = new Schema({
   guardianId: { type: String, default: null },
   /** role=student only: the student record whose class timetable this account may see. */
   studentId: { type: String, default: null },
+  /** Account was created through public self-registration (Create account). */
+  selfRegistered: { type: Boolean, default: false },
+  /** Who approved a self-registered account, and when. */
+  approvedBy: { type: String, default: null },
+  approvedAt: { type: Date, default: null },
   ...syncedDef
 }, baseOptions);
 syncedFields(userSchema);
@@ -105,6 +112,8 @@ userSchema.index({ studentId: 1 }, { unique: true, partialFilterExpression: { st
 userSchema.index({ guardianId: 1 }, { unique: true, partialFilterExpression: { guardianId: { $type: 'string' } } });
 userSchema.index({ username: 1 }, { unique: true });
 userSchema.index({ role: 1, status: 1 });
+// Email lookups (sign-in by email, duplicate checks at registration).
+userSchema.index({ email: 1 });
 export const User = model('User', userSchema, 'users');
 export type UserDoc = InferSchemaType<typeof userSchema>;
 

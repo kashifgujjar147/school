@@ -29,6 +29,13 @@ const schema = z.object({
   /** Sign-in attempts per IP per 15 minutes (brute-force protection). */
   LOGIN_RATE_LIMIT: z.coerce.number().int().min(5).max(10_000).default(30),
   LOGIN_LOCK_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+  /** Public "Create account" on the sign-in page. New accounts are pending until an administrator assigns a role. */
+  REGISTRATION_ENABLED: z.string().default('true').transform((v) => v !== 'false'),
+  /**
+   * One-time secret for the web first-administrator setup (/setup). Setup is only possible while the
+   * database has no active principal/admin AND this token is set. Leave empty to disable web setup.
+   */
+  SETUP_TOKEN: z.string().optional().default('').refine((v) => v === '' || v.length >= 16, 'must be at least 16 characters (or empty to disable)'),
   UPLOAD_DIR: z.string().default('./data/uploads'),
   BACKUP_DIR: z.string().default('./data/backups'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),

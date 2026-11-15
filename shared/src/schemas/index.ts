@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ATTENDANCE_STATUSES, STAFF_ROLES, STUDENT_STATUSES, USER_STATUSES, LANGUAGES, NOTIFICATION_EVENTS } from '../constants.js';
+import { APPROVABLE_ROLES, ATTENDANCE_STATUSES, MANAGEABLE_USER_STATUSES, STAFF_ROLES, STUDENT_STATUSES, LANGUAGES, NOTIFICATION_EVENTS } from '../constants.js';
 import { PERMISSIONS } from '../logic/permissions.js';
 
 /** Request validation shared by API (authoritative) and forms (UX). */
@@ -50,7 +50,32 @@ export const userCreateSchema = z.object({
   revokedPermissions: z.array(z.enum(PERMISSIONS)).max(PERMISSIONS.length).default([])
 });
 export const userUpdateSchema = userCreateSchema.omit({ password: true, username: true }).partial().extend({
-  status: z.enum(USER_STATUSES).optional()
+  status: z.enum(MANAGEABLE_USER_STATUSES).optional()
+});
+
+/** Public self-registration. The account is created pending, with no role and no permissions. */
+export const registerSchema = z.object({
+  fullName: z.string().trim().min(2, 'Enter your full name').max(120),
+  email: z.string().trim().toLowerCase().max(160).email('Enter a valid email address'),
+  password: passwordSchema,
+  confirmPassword: z.string().max(128)
+}).refine((v) => v.password === v.confirmPassword, { path: ['confirmPassword'], message: 'Passwords do not match' });
+
+/** One-time first-administrator setup (only while no active principal/admin exists). */
+export const initialSetupSchema = z.object({
+  setupToken: z.string().min(1).max(200),
+  fullName: z.string().trim().min(2).max(120),
+  username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,40}$/, '3-40 characters: a-z, 0-9, . _ -'),
+  email: z.string().trim().toLowerCase().max(160).email().optional().nullable(),
+  password: passwordSchema,
+  confirmPassword: z.string().max(128)
+}).refine((v) => v.password === v.confirmPassword, { path: ['confirmPassword'], message: 'Passwords do not match' });
+
+/** Administrator approval of a pending account. Parent/student accounts must be linked to their record. */
+export const approveUserSchema = z.object({
+  role: z.enum(APPROVABLE_ROLES),
+  guardianId: uuid.optional().nullable(),
+  studentId: uuid.optional().nullable()
 });
 
 export const schoolSettingsSchema = z.object({
