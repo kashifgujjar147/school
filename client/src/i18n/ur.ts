@@ -424,6 +424,21 @@ export const ur: Dict = {
   guardianRecord: 'سرپرست ریکارڈ',
   studentRecord: 'طالب علم ریکارڈ',
   searchToLink: 'نام سے تلاش کریں…',
+  // Premium shell & sign-in
+  adminDashboard: 'انتظامیہ',
+  teacherPortal: 'اساتذہ پورٹل',
+  navGroupPeople: 'افراد',
+  navGroupAcademics: 'تعلیمی امور',
+  navGroupFinance: 'مالیات',
+  navGroupInsights: 'جائزہ',
+  navGroupEngagement: 'رابطہ',
+  navGroupSystem: 'سسٹم',
+  welcomeBack: 'خوش آمدید، {name}',
+  authHeadline: 'پوری اسکول برادری کے لیے ایک ہی جگہ۔',
+  authTagline: 'کلاسیں، حاضری، تعلیمی امور اور رابطہ محفوظ طریقے سے سنبھالنے کے لیے سائن ان کریں۔',
+  authPoint1: 'حاضری، تعلیمی امور اور فیس ایک ہی جگہ',
+  authPoint2: 'آف لائن بھی کام کرتا ہے اور رابطہ بحال ہونے پر ہم آہنگ ہو جاتا ہے',
+  authPoint3: 'ہر فرد کے لیے نجی، کردار پر مبنی رسائی',
   ...featuresUr,
   ...timetableUr
 };

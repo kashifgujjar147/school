@@ -7,6 +7,14 @@ import { bootstrap } from './services/session';
 import { installConnectivityListeners } from './store/connectivity';
 import { flushOutbox } from './sync/outbox';
 import { NetworkError } from './services/api';
+// Self-hosted typefaces (bundled: work offline and under the server's strict CSP; each file carries a
+// unicode-range, so browsers only download the subsets a page actually uses).
+import '@fontsource-variable/inter';
+import '@fontsource/cormorant-garamond/500.css';
+import '@fontsource/cormorant-garamond/600.css';
+import '@fontsource/playfair-display/500.css';
+import '@fontsource/noto-nastaliq-urdu/400.css';
+import '@fontsource/noto-nastaliq-urdu/700.css';
 import './index.css';
 
 const queryClient = new QueryClient({

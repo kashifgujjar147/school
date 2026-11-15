@@ -14,7 +14,11 @@ function hexToRgb(hex: string) {
 export function applyBranding(c: PublicConfig) {
   const root = document.documentElement;
   const b = hexToRgb(c.primaryColor); const a = hexToRgb(c.accentColor);
-  if (b) root.style.setProperty('--brand', b);
+  if (b) {
+    root.style.setProperty('--brand', b);
+    // Deeper shade of the school colour for hover states and dark chrome (~30% towards black).
+    root.style.setProperty('--brand-deep', b.split(' ').map((v) => Math.round(Number(v) * 0.7)).join(' '));
+  }
   if (a) root.style.setProperty('--accent', a);
   document.title = c.schoolName;
   const fav = document.getElementById('favicon') as HTMLLinkElement | null;

@@ -4,7 +4,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import { useGet } from '../hooks/useApi';
 import { useT, useFormat } from '../i18n';
 import { useAuth } from '../store/auth';
-import { Alert, Badge, Card, EmptyState, ErrorState, PageHeader, Spinner, StatCard } from '../components/ui';
+import { Alert, Badge, Card, EmptyState, ErrorState, PageHeader, Spinner, StatCard, CHART, chartTooltip } from '../components/ui';
 import { CacheNotice } from '../components/Layout';
 
 interface OverviewData {
@@ -23,6 +23,7 @@ interface OverviewData {
 export default function Overview() {
   const t = useT(); const f = useFormat();
   const config = useAuth((s) => s.config);
+  const user = useAuth((s) => s.user);
   const q = useGet<OverviewData>('/api/system/overview', { refetchInterval: 30_000 });
   if (q.isLoading) return <Spinner />;
   if (q.isError || !q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
@@ -32,11 +33,11 @@ export default function Overview() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('navOverview')} subtitle={`${config?.schoolName ?? ''} · ${f.date(d.date)}`} />
+      <PageHeader eyebrow={user ? t('welcomeBack', { name: user.fullName.split(' ')[0] ?? user.fullName }) : undefined} title={t('navOverview')} subtitle={`${config?.schoolName ?? ''} · ${f.date(d.date)}`} />
       <CacheNotice fromCache={q.data.fromCache} />
       {!d.schoolDay && <Alert kind="info">{t('notSchoolDay')}</Alert>}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard label={t('totalStudents')} value={f.num(d.totals.students)} hint={`${t('activeStudents')}: ${f.num(d.totals.activeStudents)}`} icon={<Users className="h-5 w-5" />} />
         <StatCard label={t('teachers')} value={f.num(d.totals.teachers)} icon={<GraduationCap className="h-5 w-5" />} tone="violet" />
         <StatCard label={t('classrooms')} value={f.num(d.totals.classrooms)} icon={<School className="h-5 w-5" />} tone="blue" />
@@ -48,8 +49,8 @@ export default function Overview() {
           {d.today.total === 0 ? <EmptyState title={t('notSubmitted')} /> : (
             <div className="grid grid-cols-2 gap-3">
               {(['present', 'absent', 'late', 'leave'] as const).map((s) => (
-                <div key={s} className="rounded-xl bg-surface-muted p-4">
-                  <p className="text-sm text-ink-soft">{t(s)}</p>
+                <div key={s} className="rounded-xl border border-surface-line bg-surface-muted/60 p-4">
+                  <p className="flex items-center gap-2 text-xs font-medium text-ink-soft"><span className="h-2 w-2 rounded-full" style={{ background: s === 'present' ? CHART.present : CHART[s] }} aria-hidden />{t(s)}</p>
                   <p className="num mt-1 text-2xl font-semibold">{f.num(d.today[s])}</p>
                 </div>
               ))}
@@ -57,7 +58,7 @@ export default function Overview() {
           )}
           <div className="mt-5">
             <div className="mb-2 flex justify-between text-sm"><span className="font-medium">{t('submissions')}</span><span className="num text-ink-soft">{t('submittedOf', { done: d.submissions.submitted, total: d.submissions.total })}</span></div>
-            <div className="h-2.5 overflow-hidden rounded-full bg-surface-muted"><div className="h-full rounded-full bg-brand transition-all" style={{ width: `${d.submissions.total ? (d.submissions.submitted / d.submissions.total) * 100 : 0}%` }} /></div>
+            <div className="h-2 overflow-hidden rounded-full bg-surface-sunken"><div className="h-full rounded-full bg-gradient-to-r from-brand to-brand-deep transition-all duration-700 ease-lux" style={{ width: `${d.submissions.total ? (d.submissions.submitted / d.submissions.total) * 100 : 0}%` }} /></div>
           </div>
         </Card>
 
@@ -66,11 +67,11 @@ export default function Overview() {
             <div className="h-64" dir="ltr">
               <ResponsiveContainer>
                 <AreaChart data={trend} margin={{ left: -20, right: 8, top: 8 }}>
-                  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgb(var(--brand))" stopOpacity={0.25} /><stop offset="100%" stopColor="rgb(var(--brand))" stopOpacity={0} /></linearGradient></defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eef0f3" />
-                  <XAxis dataKey="label" tick={{ fontSize: 12 }} /><YAxis domain={[0, 100]} tick={{ fontSize: 12 }} unit="%" />
-                  <Tooltip formatter={(v: number) => `${v}%`} />
-                  <Area type="monotone" dataKey="percent" name={t('attendanceRate')} stroke="rgb(var(--brand))" strokeWidth={2} fill="url(#g)" />
+                  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgb(var(--brand))" stopOpacity={0.22} /><stop offset="100%" stopColor="rgb(var(--brand))" stopOpacity={0} /></linearGradient></defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} /><YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} unit="%" />
+                  <Tooltip {...chartTooltip} formatter={(v: number) => `${v}%`} />
+                  <Area type="monotone" dataKey="percent" name={t('attendanceRate')} stroke="rgb(var(--brand))" strokeWidth={2.25} fill="url(#g)" activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -104,8 +105,8 @@ export default function Overview() {
             <div className="h-64" dir="ltr">
               <ResponsiveContainer>
                 <BarChart data={trend} margin={{ left: -20, right: 8, top: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eef0f3" /><XAxis dataKey="label" tick={{ fontSize: 12 }} /><YAxis tick={{ fontSize: 12 }} allowDecimals={false} /><Tooltip /><Legend />
-                  <Bar dataKey="absent" name={t('absent')} stackId="a" fill="#dc2626" /><Bar dataKey="late" name={t('late')} stackId="a" fill="#f59e0b" /><Bar dataKey="leave" name={t('leave')} stackId="a" fill="#0284c7" radius={[4, 4, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} allowDecimals={false} /><Tooltip {...chartTooltip} /><Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                  <Bar dataKey="absent" name={t('absent')} stackId="a" fill={CHART.absent} /><Bar dataKey="late" name={t('late')} stackId="a" fill={CHART.late} /><Bar dataKey="leave" name={t('leave')} stackId="a" fill={CHART.leave} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -113,7 +114,7 @@ export default function Overview() {
         </Card>
         <Card title={t('recentActivity')}>
           {d.recentActivity.length === 0 ? <EmptyState /> : (
-            <ul className="space-y-3 text-sm">{d.recentActivity.map((a) => <li key={a._id} className="flex justify-between gap-3"><span><span className="font-medium">{a.actorName ?? 'system'}</span> <span className="text-ink-soft">{a.action}</span></span><span className="shrink-0 text-xs text-ink-faint">{f.dateTime(a.at)}</span></li>)}</ul>
+            <ul className="divide-y divide-surface-line text-sm">{d.recentActivity.map((a) => <li key={a._id} className="flex justify-between gap-3 py-2.5 first:pt-0 last:pb-0"><span><span className="font-medium">{a.actorName ?? 'system'}</span> <span className="text-ink-soft">{a.action}</span></span><span className="shrink-0 text-xs text-ink-faint">{f.dateTime(a.at)}</span></li>)}</ul>
           )}
         </Card>
       </div>

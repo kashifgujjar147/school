@@ -11,7 +11,10 @@ function precacheManifest(): Plugin {
     name: 'sms-precache-manifest',
     apply: 'build',
     generateBundle(_opts, bundle) {
-      const files = Object.keys(bundle).filter((f) => !f.endsWith('.map')).map((f) => '/' + f);
+      // Fonts: precache only the woff2 subsets the app renders (Latin + Urdu/Arabic script). Other
+      // subsets and legacy .woff files still load on demand online; they are not needed offline.
+      const unusedFont = (f: string) => f.endsWith('.woff') || (/\.woff2$/.test(f) && /-(cyrillic|greek|vietnamese)(-ext)?-/.test(f));
+      const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && !unusedFont(f)).map((f) => '/' + f);
       const version = Date.now().toString(36);
       this.emitFile({ type: 'asset', fileName: 'precache-manifest.json', source: JSON.stringify({ version, files: ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', ...files] }) });
     }

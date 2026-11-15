@@ -435,6 +435,21 @@ export const en = {
   guardianRecord: 'Guardian record',
   studentRecord: 'Student record',
   searchToLink: 'Search by name…',
+  // Premium shell & sign-in
+  adminDashboard: 'Administration',
+  teacherPortal: 'Teacher portal',
+  navGroupPeople: 'People',
+  navGroupAcademics: 'Academics',
+  navGroupFinance: 'Finance',
+  navGroupInsights: 'Insights',
+  navGroupEngagement: 'Communication',
+  navGroupSystem: 'System',
+  welcomeBack: 'Welcome back, {name}',
+  authHeadline: 'One home for the whole school community.',
+  authTagline: 'Sign in to manage classes, attendance, academics and communication: securely, from anywhere on campus.',
+  authPoint1: 'Attendance, academics and fees in one place',
+  authPoint2: 'Keeps working offline and syncs when you reconnect',
+  authPoint3: 'Private, role-based access for every member',
   ...featuresEn,
   ...timetableEn
 } as const;

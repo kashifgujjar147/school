@@ -1,5 +1,7 @@
 ﻿import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import clsx from 'clsx';
+import { Check } from 'lucide-react';
 import { initialSetupSchema, passwordSchema, registerSchema } from '@sms/shared';
 import { useAuth } from '../store/auth';
 import { useT } from '../i18n';
@@ -20,18 +22,58 @@ export function safeNext(next: string | null): string | null {
   return next;
 }
 
-function AuthFrame({ children, title }: { children: React.ReactNode; title: string }) {
+function SchoolMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
   const config = useAuth((s) => s.config);
+  const box = size === 'lg' ? 'h-14 w-14 text-2xl' : 'h-12 w-12 text-xl';
+  return config?.logoUrl
+    ? <img src={config.logoUrl} alt="" className={clsx(box, 'rounded-2xl bg-white object-contain p-1.5 shadow-card')} />
+    : <div className={clsx(box, 'flex items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent/70 font-serif font-semibold text-night shadow-inset')}>{config?.schoolName?.[0] ?? 'S'}</div>;
+}
+
+/**
+ * Sign-in / registration / setup frame: an institutional brand panel (large screens) beside a
+ * focused form column. All text is product copy or school data from settings: nothing invented.
+ */
+function AuthFrame({ children, title }: { children: React.ReactNode; title: string }) {
+  const t = useT();
+  const config = useAuth((s) => s.config);
+  const name = config?.schoolName ?? 'School Management';
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-brand/10 via-surface-muted to-accent/10 px-4 py-10">
-      <div className="absolute end-4 top-4"><LangSwitch /></div>
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          {config?.logoUrl ? <img src={config.logoUrl} alt="" className="h-16 w-16 rounded-2xl object-contain" /> : <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand text-2xl font-bold text-white">{config?.schoolName?.[0] ?? 'S'}</div>}
-          <div><h1 className="text-xl font-semibold">{config?.schoolName ?? 'School Management'}</h1><p className="text-sm text-ink-soft">{title}</p></div>
+    <div className="grid min-h-screen bg-surface-muted lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+      <aside className="relative hidden overflow-hidden bg-night text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60rem_40rem_at_110%_-10%,rgb(var(--brand)/0.55),transparent_60%),radial-gradient(40rem_30rem_at_-10%_110%,rgb(var(--accent)/0.22),transparent_60%)]" aria-hidden />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:linear-gradient(rgb(255_255_255)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255)_1px,transparent_1px)] [background-size:56px_56px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]" aria-hidden />
+        <div className="relative flex items-center gap-4"><SchoolMark size="lg" /><p className="font-serif text-2xl font-semibold leading-tight">{name}</p></div>
+        <div className="relative max-w-lg animate-fade-up">
+          <span className="mb-7 block h-px w-12 bg-accent" aria-hidden />
+          <p className="font-serif text-[2.75rem] font-medium leading-[1.08] tracking-[-0.015em] xl:text-[3.25rem]">{t('authHeadline')}</p>
+          <p className="mt-6 max-w-md text-[0.95rem] leading-relaxed text-white/65">{t('authTagline')}</p>
+          <ul className="mt-10 space-y-3.5">
+            {(['authPoint1', 'authPoint2', 'authPoint3'] as const).map((k) => (
+              <li key={k} className="flex items-center gap-3 text-sm text-white/80"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent ring-1 ring-inset ring-accent/30"><Check className="h-3.5 w-3.5" /></span>{t(k)}</li>
+            ))}
+          </ul>
         </div>
-        <div className="card p-6">{children}</div>
-        {config?.websiteEnabled && <p className="mt-4 text-center text-sm"><Link to="/site" className="text-brand hover:underline">← {config.schoolName}</Link></p>}
+        <div className="relative flex items-center justify-between gap-4 text-xs text-white/40">
+          <span>© {new Date().getFullYear()} {name}</span>
+          {config?.websiteEnabled && <Link to="/site" className="transition hover:text-white">{t('navWebsite')} →</Link>}
+        </div>
+      </aside>
+      <div className="flex min-h-screen flex-col">
+        <div className="flex justify-end px-4 pt-4 sm:px-6"><LangSwitch /></div>
+        <div className="flex flex-1 items-center justify-center px-4 py-10 sm:px-8">
+          <div className="w-full max-w-[26rem] animate-fade-up">
+            <div className="mb-8 flex items-center gap-3.5">
+              <div className="lg:hidden"><SchoolMark /></div>
+              <div className="min-w-0">
+                <h1 className="truncate text-sm font-semibold text-ink lg:eyebrow lg:text-ink-faint">{name}</h1>
+                <p className="font-serif text-[2rem] font-semibold leading-tight tracking-[-0.01em] text-ink">{title}</p>
+              </div>
+            </div>
+            <div className="card p-6 shadow-raised sm:p-8">{children}</div>
+            {config?.websiteEnabled && <p className="mt-6 text-center text-sm lg:hidden"><Link to="/site" className="text-ink-soft transition hover:text-brand">← {name}</Link></p>}
+          </div>
+        </div>
       </div>
     </div>
   );

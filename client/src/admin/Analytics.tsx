@@ -6,7 +6,7 @@ import { useGet } from '../hooks/useApi';
 import { useFormat, useT, type TKey } from '../i18n';
 import { useAuth } from '../store/auth';
 import { qs } from '../services/api';
-import { Badge, Card, EmptyState, ErrorState, Input, PageHeader, Select, Spinner, StatCard, Table } from '../components/ui';
+import { Badge, Card, EmptyState, ErrorState, Input, PageHeader, Select, Spinner, StatCard, Table, CHART, chartTooltip } from '../components/ui';
 import { useMoney } from '../parent/common';
 import { useClasses } from './shared';
 import { shiftIso, todayIso } from '../teacher/common';
@@ -73,9 +73,9 @@ export default function Analytics() {
                   <ResponsiveContainer>
                     <AreaChart data={d.attendance.trend.map((x) => ({ ...x, label: label(x.period) }))} margin={{ left: -20, right: 8, top: 8 }}>
                       <defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgb(var(--brand))" stopOpacity={0.25} /><stop offset="100%" stopColor="rgb(var(--brand))" stopOpacity={0} /></linearGradient></defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eef0f3" />
-                      <XAxis dataKey="label" tick={{ fontSize: 12 }} /><YAxis domain={[0, 100]} tick={{ fontSize: 12 }} unit="%" />
-                      <Tooltip formatter={(v: number) => `${v}%`} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} /><YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} unit="%" />
+                      <Tooltip {...chartTooltip} formatter={(v: number) => `${v}%`} />
                       <Area type="monotone" dataKey="percent" name={t('attendanceRate')} stroke="rgb(var(--brand))" strokeWidth={2} fill="url(#ga)" />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -117,8 +117,8 @@ export default function Analytics() {
                 <div className="h-48" dir="ltr">
                   <ResponsiveContainer>
                     <BarChart data={d.fees.collectionTrend.map((x) => ({ label: label(x.period), amount: fromMinor(x.amountMinor) }))} margin={{ left: 0, right: 8, top: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eef0f3" /><XAxis dataKey="label" tick={{ fontSize: 12 }} /><YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip formatter={(v: number) => v.toLocaleString()} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} />
+                      <Tooltip {...chartTooltip} formatter={(v: number) => v.toLocaleString()} />
                       <Bar dataKey="amount" name={t('collected')} fill="rgb(var(--brand))" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -142,7 +142,7 @@ export default function Analytics() {
                 <div className="h-56" dir="ltr">
                   <ResponsiveContainer>
                     <BarChart data={d.enrollment.trend} margin={{ left: -20, right: 8, top: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eef0f3" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} tick={{ fontSize: 12 }} /><Tooltip />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} /><XAxis dataKey="month" tick={{ fontSize: 11, fill: CHART.tick }} axisLine={false} tickLine={false} /><YAxis allowDecimals={false} tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} /><Tooltip {...chartTooltip} />
                       <Bar dataKey="admissions" name={t('admissions')} fill="rgb(var(--accent))" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>

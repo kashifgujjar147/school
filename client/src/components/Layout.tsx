@@ -1,10 +1,10 @@
-import { useState, type ReactNode } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useState, type ReactNode } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import {
   LayoutDashboard, Users, School, UserCog, ClipboardCheck, FileEdit, Contact, MessageSquare, BarChart3, Settings,
   ShieldCheck, Activity, DatabaseBackup, RefreshCw, Globe, Menu, X, LogOut, KeyRound, Cloud, CloudOff, CheckCircle2, AlertTriangle, BookOpen, History,
-  Wallet, GraduationCap, NotebookPen, LineChart, IdCard, Home, Bell, CalendarClock, CalendarDays
+  Wallet, GraduationCap, NotebookPen, LineChart, IdCard, Home, Bell, CalendarClock, CalendarDays, ChevronRight
 } from 'lucide-react';
 import type { Permission } from '@sms/shared';
 import { useAuth } from '../store/auth';
@@ -14,30 +14,30 @@ import { useLang, useT, useFormat, type TKey } from '../i18n';
 import { signOut } from '../services/session';
 import { Alert } from './ui';
 
-interface NavItem { to: string; label: TKey; icon: ReactNode; perm?: Permission; standard?: boolean }
+interface NavItem { to: string; label: TKey; icon: ReactNode; perm?: Permission; standard?: boolean; group?: TKey }
 
 const ADMIN_NAV: NavItem[] = [
   { to: '/admin', label: 'navOverview', icon: <LayoutDashboard />, perm: 'dashboard.view' },
-  { to: '/admin/students', label: 'navStudents', icon: <Users />, perm: 'students.view' },
-  { to: '/admin/classrooms', label: 'navClassrooms', icon: <School />, perm: 'classrooms.view' },
-  { to: '/admin/timetable', label: 'navTimetable', icon: <CalendarClock />, perm: 'timetable.view' },
-  { to: '/admin/users', label: 'navUsers', icon: <UserCog />, perm: 'users.view' },
-  { to: '/admin/attendance', label: 'navAttendance', icon: <ClipboardCheck />, perm: 'attendance.view_all' },
-  { to: '/admin/corrections', label: 'navCorrections', icon: <FileEdit />, perm: 'corrections.review' },
-  { to: '/admin/guardians', label: 'navGuardians', icon: <Contact />, perm: 'guardians.view', standard: true },
-  { to: '/admin/sms', label: 'navSms', icon: <MessageSquare />, perm: 'sms.view', standard: true },
-  { to: '/admin/reports', label: 'navReports', icon: <BarChart3 />, perm: 'reports.view' },
-  { to: '/admin/analytics', label: 'navAnalytics', icon: <LineChart />, perm: 'analytics.view' },
-  { to: '/admin/fees', label: 'navFees', icon: <Wallet />, perm: 'fees.view' },
-  { to: '/admin/exams', label: 'navExams', icon: <GraduationCap />, perm: 'exams.view' },
-  { to: '/admin/homework', label: 'navHomework', icon: <NotebookPen />, perm: 'homework.view' },
-  { to: '/admin/id-cards', label: 'navIdCards', icon: <IdCard />, perm: 'idcards.manage' },
-  { to: '/admin/settings', label: 'navSettings', icon: <Settings />, perm: 'settings.view' },
-  { to: '/admin/website', label: 'navWebsite', icon: <Globe />, perm: 'website.manage' },
-  { to: '/admin/security', label: 'navSecurity', icon: <ShieldCheck />, perm: 'security.view' },
-  { to: '/admin/health', label: 'navHealth', icon: <Activity />, perm: 'system.view' },
-  { to: '/admin/backups', label: 'navBackups', icon: <DatabaseBackup />, perm: 'backups.manage' },
-  { to: '/admin/sync', label: 'navSync', icon: <RefreshCw />, perm: 'sync.view' }
+  { to: '/admin/students', label: 'navStudents', icon: <Users />, perm: 'students.view', group: 'navGroupPeople' },
+  { to: '/admin/users', label: 'navUsers', icon: <UserCog />, perm: 'users.view', group: 'navGroupPeople' },
+  { to: '/admin/guardians', label: 'navGuardians', icon: <Contact />, perm: 'guardians.view', standard: true, group: 'navGroupPeople' },
+  { to: '/admin/id-cards', label: 'navIdCards', icon: <IdCard />, perm: 'idcards.manage', group: 'navGroupPeople' },
+  { to: '/admin/classrooms', label: 'navClassrooms', icon: <School />, perm: 'classrooms.view', group: 'navGroupAcademics' },
+  { to: '/admin/timetable', label: 'navTimetable', icon: <CalendarClock />, perm: 'timetable.view', group: 'navGroupAcademics' },
+  { to: '/admin/attendance', label: 'navAttendance', icon: <ClipboardCheck />, perm: 'attendance.view_all', group: 'navGroupAcademics' },
+  { to: '/admin/corrections', label: 'navCorrections', icon: <FileEdit />, perm: 'corrections.review', group: 'navGroupAcademics' },
+  { to: '/admin/exams', label: 'navExams', icon: <GraduationCap />, perm: 'exams.view', group: 'navGroupAcademics' },
+  { to: '/admin/homework', label: 'navHomework', icon: <NotebookPen />, perm: 'homework.view', group: 'navGroupAcademics' },
+  { to: '/admin/fees', label: 'navFees', icon: <Wallet />, perm: 'fees.view', group: 'navGroupFinance' },
+  { to: '/admin/reports', label: 'navReports', icon: <BarChart3 />, perm: 'reports.view', group: 'navGroupInsights' },
+  { to: '/admin/analytics', label: 'navAnalytics', icon: <LineChart />, perm: 'analytics.view', group: 'navGroupInsights' },
+  { to: '/admin/sms', label: 'navSms', icon: <MessageSquare />, perm: 'sms.view', standard: true, group: 'navGroupEngagement' },
+  { to: '/admin/website', label: 'navWebsite', icon: <Globe />, perm: 'website.manage', group: 'navGroupEngagement' },
+  { to: '/admin/settings', label: 'navSettings', icon: <Settings />, perm: 'settings.view', group: 'navGroupSystem' },
+  { to: '/admin/security', label: 'navSecurity', icon: <ShieldCheck />, perm: 'security.view', group: 'navGroupSystem' },
+  { to: '/admin/health', label: 'navHealth', icon: <Activity />, perm: 'system.view', group: 'navGroupSystem' },
+  { to: '/admin/backups', label: 'navBackups', icon: <DatabaseBackup />, perm: 'backups.manage', group: 'navGroupSystem' },
+  { to: '/admin/sync', label: 'navSync', icon: <RefreshCw />, perm: 'sync.view', group: 'navGroupSystem' }
 ];
 
 const TEACHER_NAV: NavItem[] = [
@@ -66,7 +66,7 @@ export function ConnectionIndicator() {
   const connected = browserOnline && serverReachable && !offlineSession;
   return (
     <div className="flex items-center gap-2">
-      <span className={clsx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium', connected ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800')} role="status" aria-live="polite">
+      <span className={clsx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset', connected ? 'bg-emerald-50 text-emerald-800 ring-emerald-700/15' : 'bg-amber-50 text-amber-900 ring-amber-700/20')} role="status" aria-live="polite">
         {connected ? <Cloud className="h-3.5 w-3.5" /> : <CloudOff className="h-3.5 w-3.5" />}
         {connected ? t('online') : !browserOnline ? t('offline') : t('serverUnreachable')}
       </span>
@@ -84,9 +84,9 @@ export function ConnectionIndicator() {
 export function LangSwitch() {
   const { lang, setLang } = useLang();
   return (
-    <div className="inline-flex rounded-lg border border-surface-line bg-white p-0.5 text-xs" role="group" aria-label="Language">
+    <div className="inline-flex rounded-full border border-surface-line bg-white p-0.5 text-xs shadow-card" role="group" aria-label="Language">
       {(['en', 'ur'] as const).map((l) => (
-        <button key={l} onClick={() => setLang(l)} className={clsx('rounded-md px-2.5 py-1 font-medium', lang === l ? 'bg-brand text-white' : 'text-ink-soft')} aria-pressed={lang === l}>
+        <button key={l} onClick={() => setLang(l)} className={clsx('rounded-full px-2.5 py-1 font-medium transition duration-200', lang === l ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink')} aria-pressed={lang === l}>
           {l === 'en' ? 'EN' : 'اردو'}
         </button>
       ))}
@@ -100,56 +100,108 @@ export function CacheNotice({ fromCache }: { fromCache?: { savedAt: number } }) 
   return <div className="mb-4"><Alert kind="warning">{t('cachedDataNotice', { time: f.dateTime(new Date(fromCache.savedAt)) })}</Alert></div>;
 }
 
+function initials(name?: string) {
+  return (name ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('') || '•';
+}
+
 function Shell({ nav, variant }: { nav: NavItem[]; variant: 'admin' | 'teacher' | 'parent' | 'student' }) {
   const t = useT();
   const navigate = useNavigate();
+  const loc = useLocation();
   const { user, config, can, needsReauth } = useAuth();
   const [open, setOpen] = useState(false);
   const items = nav.filter((n) => (!n.perm || can(n.perm)) && (!n.standard || config?.package === 'standard'));
+  const home = `/${variant}`;
+  const current = items.filter((n) => loc.pathname === n.to || (n.to !== home && loc.pathname.startsWith(`${n.to}/`))).sort((a, b) => b.to.length - a.to.length)[0];
+  const area = variant === 'admin' ? t('adminDashboard') : variant === 'parent' ? t('parentPortal') : variant === 'student' ? t('studentPortal') : t('teacherPortal');
+  const loginPath = variant === 'parent' ? '/parent/login' : variant === 'student' ? '/student/login' : '/login';
+  // Re-animate on real page changes only (nested CMS / timetable routes keep their state).
+  const pageKey = loc.pathname.split('/').slice(0, 3).join('/');
+  useEffect(() => { setOpen(false); }, [loc.pathname]);
+
+  const groups: { label?: TKey; items: NavItem[] }[] = [];
+  for (const n of items) {
+    const last = groups[groups.length - 1];
+    if (last && last.label === n.group) last.items.push(n); else groups.push({ label: n.group, items: [n] });
+  }
+
+  const linkCls = ({ isActive }: { isActive: boolean }) => clsx(
+    'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[0.8125rem] font-medium transition duration-200 ease-lux [&>svg]:h-[17px] [&>svg]:w-[17px] [&>svg]:shrink-0',
+    isActive ? 'bg-white/[0.09] text-white [&>svg]:text-accent' : 'text-white/60 hover:bg-white/[0.05] hover:text-white [&>svg]:text-white/45 hover:[&>svg]:text-white/80'
+  );
   const side = (
-    <nav className="flex h-full flex-col gap-1 p-3" aria-label="Main">
-      <div className="mb-4 flex items-center gap-3 px-2 pt-2">
-        {config?.logoUrl ? <img src={config.logoUrl} alt="" className="h-9 w-9 rounded-lg object-contain" /> : <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white">{config?.schoolName?.[0] ?? 'S'}</div>}
-        <div className="min-w-0"><p className="truncate text-sm font-semibold">{config?.schoolName ?? t('appName')}</p><p className="text-xs text-ink-faint">{variant === 'admin' ? t('navOverview') : variant === 'parent' ? t('parentPortal') : variant === 'student' ? t('studentPortal') : t('navMyClasses')}</p></div>
+    <nav className="flex h-full flex-col" aria-label="Main">
+      <div className="flex items-center gap-3 px-5 pb-5 pt-6">
+        {config?.logoUrl ? <img src={config.logoUrl} alt="" className="h-10 w-10 rounded-xl bg-white object-contain p-1" />
+          : <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent/70 font-serif text-xl font-semibold text-night shadow-inset">{config?.schoolName?.[0] ?? 'S'}</div>}
+        <div className="min-w-0">
+          <p className="truncate font-serif text-[1.15rem] font-semibold leading-tight text-white">{config?.schoolName ?? t('appName')}</p>
+          <p className="eyebrow mt-0.5 truncate text-white/40">{area}</p>
+        </div>
       </div>
-      {items.map((n) => (
-        <NavLink key={n.to} to={n.to} end={n.to === '/admin' || n.to === '/teacher' || n.to === '/parent' || n.to === '/student'} onClick={() => setOpen(false)}
-          className={({ isActive }) => clsx('flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition [&>svg]:h-[18px] [&>svg]:w-[18px]', isActive ? 'bg-brand text-white' : 'text-ink-soft hover:bg-surface-muted hover:text-ink')}>
-          {n.icon}<span>{t(n.label)}</span>
-        </NavLink>
-      ))}
-      <div className="mt-auto border-t border-surface-line pt-3">
-        {variant === 'admin' && user?.permissions.includes('attendance.mark') && <NavLink to="/teacher" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-ink-soft hover:bg-surface-muted"><ClipboardCheck className="h-[18px] w-[18px]" />{t('markAttendance')}</NavLink>}
-        <NavLink to={`/${variant}/account`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-ink-soft hover:bg-surface-muted"><KeyRound className="h-[18px] w-[18px]" />{t('changePassword')}</NavLink>
-        <button onClick={async () => { await signOut(); navigate(variant === 'parent' ? '/parent/login' : variant === 'student' ? '/student/login' : '/login'); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-ink-soft hover:bg-surface-muted"><LogOut className="h-[18px] w-[18px] rtl:rotate-180" />{t('signOut')}</button>
-        <button onClick={async () => { await signOut(true); navigate(variant === 'parent' ? '/parent/login' : variant === 'student' ? '/student/login' : '/login'); }} className="w-full px-3 pb-1 text-start text-[11px] text-ink-faint underline-offset-2 hover:underline">Shared device? Sign out &amp; remove offline data</button>
-        <p className="px-3 pt-2 text-[11px] text-ink-faint">v{config?.version} · {config?.package} · {config?.mode}</p>
+      <div className="mx-5 h-px bg-night-line" aria-hidden />
+      <div className="flex-1 space-y-5 overflow-y-auto px-3 py-5 [scrollbar-width:thin]">
+        {groups.map((g, gi) => (
+          <div key={g.label ?? `g${gi}`} className="space-y-0.5">
+            {g.label && <p className="eyebrow px-3 pb-1.5 text-white/30">{t(g.label)}</p>}
+            {g.items.map((n) => (
+              <NavLink key={n.to} to={n.to} end={n.to === home} className={linkCls}>
+                {({ isActive }) => <>
+                  <span className={clsx('absolute inset-y-1.5 start-0 w-[3px] rounded-full bg-accent transition-opacity', isActive ? 'opacity-100' : 'opacity-0')} aria-hidden />
+                  {n.icon}<span className="truncate">{t(n.label)}</span>
+                </>}
+              </NavLink>
+            ))}
+          </div>
+        ))}
+        {variant === 'admin' && user?.permissions.includes('attendance.mark') && (
+          <div className="space-y-0.5"><NavLink to="/teacher" className={linkCls({ isActive: false })}><ClipboardCheck />{t('markAttendance')}</NavLink></div>
+        )}
+      </div>
+      <div className="border-t border-night-line px-3 pb-3 pt-3">
+        <div className="flex items-center gap-2.5 rounded-xl px-2 py-1.5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white ring-1 ring-inset ring-white/15">{initials(user?.fullName)}</div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-white">{user?.fullName}</p>
+            <p className="truncate text-2xs text-white/40" title={`v${config?.version} · ${config?.package} · ${config?.mode}`}>{user ? t(user.role) : ''} · v{config?.version}</p>
+          </div>
+          <NavLink to={`/${variant}/account`} title={t('changePassword')} aria-label={t('changePassword')} className={({ isActive }) => clsx('rounded-lg p-2 transition', isActive ? 'bg-white/10 text-accent' : 'text-white/45 hover:bg-white/[0.07] hover:text-white')}><KeyRound className="h-4 w-4" /></NavLink>
+          <button onClick={async () => { await signOut(); navigate(loginPath); }} title={t('signOut')} aria-label={t('signOut')} className="rounded-lg p-2 text-white/45 transition hover:bg-white/[0.07] hover:text-white"><LogOut className="h-4 w-4 rtl:rotate-180" /></button>
+        </div>
+        <button onClick={async () => { await signOut(true); navigate(loginPath); }} className="mt-1 w-full px-2 text-start text-2xs text-white/30 underline-offset-2 transition hover:text-white/60 hover:underline">Shared device? Sign out &amp; remove offline data</button>
       </div>
     </nav>
   );
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 overflow-y-auto border-e border-surface-line bg-white lg:block">{side}</aside>
+      <aside className="sticky top-0 hidden h-screen w-[17rem] shrink-0 bg-night lg:block">{side}</aside>
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setOpen(false)}>
-          <div className="absolute inset-0 bg-ink/40" />
-          <aside className="absolute inset-y-0 start-0 w-72 overflow-y-auto bg-white" onClick={(e) => e.stopPropagation()}>{side}</aside>
+          <div className="absolute inset-0 animate-fade-in bg-night/50 backdrop-blur-[2px]" />
+          <aside className="absolute inset-y-0 start-0 w-[18rem] max-w-[85vw] animate-drawer-in bg-night shadow-overlay [--drawer-from:-100%] rtl:[--drawer-from:100%]" onClick={(e) => e.stopPropagation()}>{side}</aside>
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-surface-line bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
-          <div className="flex items-center gap-3">
-            <button className="rounded-lg p-2 hover:bg-surface-muted lg:hidden" onClick={() => setOpen(true)} aria-label="Menu">{open ? <X /> : <Menu />}</button>
-            <ConnectionIndicator />
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-surface-line bg-white/85 px-4 py-3 backdrop-blur-md sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <button className="rounded-xl p-2 text-ink-soft transition hover:bg-surface-muted hover:text-ink lg:hidden" onClick={() => setOpen(true)} aria-label="Menu">{open ? <X /> : <Menu />}</button>
+            <div className="hidden min-w-0 items-center gap-2 text-sm md:flex" aria-label="Breadcrumb">
+              <span className="truncate text-ink-faint">{area}</span>
+              {current && current.to !== home && <><ChevronRight className="h-3.5 w-3.5 shrink-0 text-ink-faint/70 rtl:rotate-180" aria-hidden /><span className="truncate font-medium text-ink">{t(current.label)}</span></>}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <ConnectionIndicator />
             <LangSwitch />
-            <div className="hidden text-end sm:block"><p className="text-sm font-medium leading-tight">{user?.fullName}</p><p className="text-xs text-ink-faint">{user ? t(user.role) : ''}</p></div>
+            <div className="hidden items-center gap-2.5 border-s border-surface-line ps-3 sm:flex">
+              <div className="text-end"><p className="text-sm font-medium leading-tight text-ink">{user?.fullName}</p><p className="text-2xs text-ink-faint">{user ? t(user.role) : ''}</p></div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-xs font-semibold text-white ring-2 ring-white">{initials(user?.fullName)}</div>
+            </div>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
           {needsReauth && <div className="mb-4"><Alert kind="warning">{t('signInAgainToSync')} <button className="font-medium underline" onClick={() => navigate('/login?reauth=1')}>{t('signIn')}</button></Alert></div>}
-          <Outlet />
+          <div key={pageKey} className="page-enter"><Outlet /></div>
         </main>
       </div>
     </div>

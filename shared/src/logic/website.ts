@@ -254,11 +254,11 @@ export const nextSlideIndex = (i: number, n: number, dir: 1 | -1 = 1): number =>
 export const HEADING_FONTS = {
   'serif-classic': '"Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif',
   'serif-modern': '"Playfair Display", Didot, "Bodoni MT", "Hoefler Text", Georgia, "Times New Roman", serif',
-  'sans-refined': 'Inter, "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif',
+  'sans-refined': '"Inter Variable", Inter, "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif',
   'sans-humanist': 'Optima, Candara, "Gill Sans", "Gill Sans MT", "Segoe UI", sans-serif'
 } as const;
 export const BODY_FONTS = {
-  sans: 'Inter, "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif',
+  sans: '"Inter Variable", Inter, "Helvetica Neue", Helvetica, "Segoe UI", Roboto, Arial, sans-serif',
   humanist: 'Optima, Candara, "Gill Sans", "Segoe UI", sans-serif',
   serif: '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif'
 } as const;

@@ -125,3 +125,24 @@ html[dir='rtl'] .site-progress > span { transform-origin: right; }
 .site-root .site-on-dark .site-hair, .site-root .site-on-dark.site-hair { border-color: rgb(255 255 255 / 0.22); }
 .site-root .site-eyebrow { font-family: var(--site-font-body); font-weight: 600; letter-spacing: 0.26em; }
 html[dir='rtl'] .site-root .site-eyebrow { letter-spacing: 0; }
+
+/* ---- Typographic refinement (fonts are now bundled, so the theme's chosen typefaces really render) ---- */
+.site-root { font-feature-settings: 'kern', 'liga', 'calt'; font-optical-sizing: auto; }
+.site-root h1, .site-root h2, .site-root h3 { text-wrap: balance; }
+.site-root p { text-wrap: pretty; }
+html:not([dir='rtl']) .site-root h1 { letter-spacing: -0.018em; }
+
+/* Dropdown menus: soft radius and layered shadow instead of a flat box. */
+.site-dropdown > ul { border-radius: max(var(--site-radius), 4px); box-shadow: 0 24px 48px -20px rgb(16 24 40 / 0.28), 0 2px 6px rgb(16 24 40 / 0.06); overflow: hidden; }
+
+/* Media placeholders breathe gently while images load (disabled with reduced motion below). */
+.site-media:not(:has(img[src], video)) { background: linear-gradient(90deg, rgb(var(--site-primary) / 0.05), rgb(var(--site-primary) / 0.1), rgb(var(--site-primary) / 0.05)); background-size: 200% 100%; animation: site-shimmer 1.8s linear infinite; }
+@keyframes site-shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+
+/* Buttons: a touch of depth on solid styles. */
+.site-btn-primary, .site-btn-accent { box-shadow: 0 1px 2px rgb(16 24 40 / 0.12), inset 0 1px 0 rgb(255 255 255 / 0.1); }
+.site-btn:focus-visible { outline-offset: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .site-media { animation: none !important; }
+}
