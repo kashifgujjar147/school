@@ -1,3 +1,4 @@
+import { resolveApiUrl } from './apiUrl';
 import { db } from '../offline/db';
 import { useAuth } from '../store/auth';
 import { useConnectivity } from '../store/connectivity';
@@ -21,13 +22,15 @@ const CACHEABLE = [/^\/api\/academic\/classrooms/, /^\/api\/students(\?|$)/, /^\
   // Timetables stay readable offline (teacher's own, a student's class, a parent's child).
   /^\/api\/timetable\/my/, /^\/api\/student\/(me|timetable)/, /^\/api\/parent\/children\/[0-9a-f-]{36}\/timetable/];
 
+
+
 async function raw(method: string, url: string, body?: unknown, headers: Record<string, string> = {}): Promise<Response> {
   const isForm = body instanceof FormData;
   const h: Record<string, string> = { Accept: 'application/json', ...headers };
   if (body !== undefined && !isForm) h['Content-Type'] = 'application/json';
   if (method !== 'GET') { const csrf = readCookie('sms_csrf'); if (csrf) h['X-CSRF-Token'] = csrf; }
   try {
-    const r = await fetch(url, { method, headers: h, credentials: 'same-origin', body: body === undefined ? undefined : isForm ? body : JSON.stringify(body) });
+    const r = await fetch(resolveApiUrl(url), { method, headers: h, credentials: 'include', body: body === undefined ? undefined : isForm ? body : JSON.stringify(body) });
     useConnectivity.getState().setServerReachable(true);
     return r;
   } catch {

@@ -1,3 +1,4 @@
+import { resolveApiUrl } from '../services/apiUrl';
 import { create } from 'zustand';
 
 interface ConnState {
@@ -10,7 +11,7 @@ interface ConnState {
 /**
  * Two separate signals. navigator.onLine is unreliable (true on a Wi-Fi with no route), so we
  * also track whether the last real request reached our server. On a LAN install the browser
- * can be "offline" from the internet yet reach the school server — that counts as connected.
+ * can be "offline" from the internet yet reach the school server â€” that counts as connected.
  */
 export const useConnectivity = create<ConnState>((set) => ({
   browserOnline: typeof navigator === 'undefined' ? true : navigator.onLine,
@@ -32,7 +33,7 @@ export function installConnectivityListeners(onReconnect: () => void) {
   // Periodic lightweight probe so we notice when a LAN server comes back.
   const timer = window.setInterval(async () => {
     try {
-      const r = await fetch('/api/health', { cache: 'no-store' });
+      const r = await fetch(resolveApiUrl('/api/health'), { cache: 'no-store', credentials: 'include' });
       const was = useConnectivity.getState().serverReachable;
       useConnectivity.getState().setServerReachable(r.ok || r.status === 503);
       if (!was && (r.ok || r.status === 503)) onReconnect();

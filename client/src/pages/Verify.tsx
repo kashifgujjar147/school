@@ -1,3 +1,4 @@
+import { resolveApiUrl } from '../services/apiUrl';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { BadgeCheck, ShieldAlert, ShieldX } from 'lucide-react';
@@ -43,7 +44,7 @@ export default function Verify() {
             {d?.student && (
               <dl className="mt-4 space-y-2 text-start text-sm">
                 <div className="flex justify-between gap-3"><dt className="opacity-75">{t('name')}</dt><dd className="font-medium">{d.student.fullName}</dd></div>
-                <div className="flex justify-between gap-3"><dt className="opacity-75">{t('class')}</dt><dd className="font-medium">{d.student.className || '—'}</dd></div>
+                <div className="flex justify-between gap-3"><dt className="opacity-75">{t('class')}</dt><dd className="font-medium">{d.student.className || 'â€”'}</dd></div>
                 <div className="flex justify-between gap-3"><dt className="opacity-75">{t('enrolled')}</dt><dd className="font-medium">{d.student.enrolled ? t('yes') : t('no')}</dd></div>
                 {d.issuedAt && <div className="flex justify-between gap-3"><dt className="opacity-75">{t('cardIssued')}</dt><dd className="num font-medium">{f.date(d.issuedAt)}</dd></div>}
               </dl>
