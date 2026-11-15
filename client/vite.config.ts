@@ -24,6 +24,10 @@ export default defineConfig({
     port: 5173,
     proxy: { '/api': 'http://localhost:8080', '/uploads': 'http://localhost:8080' }
   },
+  preview: {
+    allowedHosts: ['smsclient-production.up.railway.app']
+  },
+
   build: { outDir: 'dist', sourcemap: false, chunkSizeWarningLimit: 900 },
   test: {
     environment: 'jsdom',
