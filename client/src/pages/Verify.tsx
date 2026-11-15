@@ -20,7 +20,7 @@ export default function Verify() {
   const [state, setState] = useState<{ loading: boolean; data: Result | null; error: boolean }>({ loading: true, data: null, error: false });
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/public/verify/${encodeURIComponent(token)}`, { headers: { Accept: 'application/json' } })
+    fetch(resolveApiUrl(`/api/public/verify/${encodeURIComponent(token)}`), { headers: { Accept: 'application/json' }, credentials: 'include' })
       .then(async (r) => { const j = await r.json().catch(() => null); if (!cancelled) setState({ loading: false, data: j?.data ?? null, error: !r.ok && r.status !== 404 }); })
       .catch(() => { if (!cancelled) setState({ loading: false, data: null, error: true }); });
     return () => { cancelled = true; };
@@ -44,7 +44,7 @@ export default function Verify() {
             {d?.student && (
               <dl className="mt-4 space-y-2 text-start text-sm">
                 <div className="flex justify-between gap-3"><dt className="opacity-75">{t('name')}</dt><dd className="font-medium">{d.student.fullName}</dd></div>
-                <div className="flex justify-between gap-3"><dt className="opacity-75">{t('class')}</dt><dd className="font-medium">{d.student.className || 'â€”'}</dd></div>
+                <div className="flex justify-between gap-3"><dt className="opacity-75">{t('class')}</dt><dd className="font-medium">{d.student.className || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</dd></div>
                 <div className="flex justify-between gap-3"><dt className="opacity-75">{t('enrolled')}</dt><dd className="font-medium">{d.student.enrolled ? t('yes') : t('no')}</dd></div>
                 {d.issuedAt && <div className="flex justify-between gap-3"><dt className="opacity-75">{t('cardIssued')}</dt><dd className="num font-medium">{f.date(d.issuedAt)}</dd></div>}
               </dl>
