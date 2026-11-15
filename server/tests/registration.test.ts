@@ -199,6 +199,27 @@ describe('first-administrator setup', () => {
     expect(await User.findOne({ username: 'jane.doe' }).lean()).toMatchObject({ role: 'unassigned', status: 'pending' });
   });
 
+  it('first Create-account on a school with no administrator becomes principal; later ones stay pending', async () => {
+    await removeAdmins();
+    const r = await register(valid);
+    expect(r.status).toBe(201);
+    expect(r.body.data).toMatchObject({ role: 'principal', status: 'active' });
+    const p = await login(w.app, 'jane.doe@example.com', NEW_PW);
+    expect((await p.get('/api/auth/me')).body.data.user.role).toBe('principal');
+    expect((await p.get('/api/users')).status).toBe(200);
+    const second = await register({ ...valid, email: 'second@example.com' });
+    expect(second.body.data).toMatchObject({ role: 'unassigned', status: 'pending' });
+    expect(await User.countDocuments({ role: 'principal' })).toBe(1);
+  });
+
+  it('concurrent first registrations create only one principal', async () => {
+    await removeAdmins();
+    const rs = await Promise.all([1, 2, 3, 4].map((i) => register({ ...valid, email: `racer${i}@example.com` })));
+    expect(rs.every((r) => r.status === 201)).toBe(true);
+    expect(rs.filter((r) => r.body.data.role === 'principal')).toHaveLength(1);
+    expect(await User.countDocuments({ role: 'principal' })).toBe(1);
+  });
+
   it('concurrent setup requests create only one administrator', async () => {
     await removeAdmins();
     mutableEnv.SETUP_TOKEN = TOKEN;

@@ -137,6 +137,23 @@ authRouter.post('/reset/confirm', resetLimiter, h(async (req, res) => {
 }));
 
 /**
+ * Atomically claims the one-time "first administrator" slot so two concurrent requests can never both
+ * create a first principal. A claim older than a minute that produced no administrator (e.g. a crash)
+ * may be re-claimed. Returns false when an administrator already exists or another request holds it.
+ */
+async function claimFirstAdmin(): Promise<boolean> {
+  if (!(await setupRequired())) return false;
+  const now = new Date();
+  const claimed = await SchoolSettings.findOneAndUpdate(
+    { _id: 'school', $or: [{ setupCompletedAt: null }, { setupCompletedAt: $cmp({ lt: new Date(now.getTime() - 60_000) }) }] },
+    { $set: { setupCompletedAt: now } },
+    { new: true }
+  ).lean();
+  return Boolean(claimed) && (await setupRequired());
+}
+const releaseFirstAdmin = () => SchoolSettings.updateOne({ _id: 'school' }, { $set: { setupCompletedAt: null } });
+
+/**
  * Public self-registration ("Create account"). The account is stored with role 'unassigned' and
  * status 'pending': it has no permissions and cannot sign in until an administrator approves it
  * and assigns a role (POST /api/users/:id/approve). Public registration can never grant a role.
@@ -146,18 +163,28 @@ authRouter.post('/register', registerLimiter, h(async (req, res) => {
   const { fullName, email, password } = parse(registerSchema, req.body);
   if (await User.exists({ email: emailMatch(email), deletedAt: null })) throw conflict('An account with this email address already exists. Sign in, or use "Forgot password?".');
   const username = await usernameFromEmail(email);
+  // First account on a school with NO active principal/admin becomes the principal (initial setup
+  // without PowerShell). Every later registration is pending with no role.
+  const first = await claimFirstAdmin();
   let user;
   try {
     user = await createVersioned(User, {
-      username, fullName, email, role: 'unassigned', status: 'pending', selfRegistered: true,
+      username, fullName, email, selfRegistered: true,
+      ...(first ? { role: 'principal', status: 'active', approvedAt: new Date() } : { role: 'unassigned', status: 'pending' }),
       passwordHash: await hashPassword(password), mustChangePassword: false
     });
   } catch (e) {
+    if (first) await releaseFirstAdmin();
     if ((e as { code?: number }).code === 11000) throw conflict('That account already exists. Please try signing in.');
     throw e;
   }
+  if (first) {
+    await audit(null, 'auth.initial_setup', 'user', user._id, { username, ip: req.ip, via: 'register' });
+    logger.warn({ username }, 'first account registered on a school with no administrator: created as principal');
+    return ok(res, { username, status: 'active', role: 'principal', message: 'Account created as the school principal.' }, undefined, 201);
+  }
   await audit(null, 'auth.registered', 'user', user._id, { username, ip: req.ip });
-  ok(res, { username, status: 'pending', message: 'Account created. An administrator must assign your role before you can sign in.' }, undefined, 201);
+  ok(res, { username, status: 'pending', role: 'unassigned', message: 'Account created. An administrator must assign your role before you can sign in.' }, undefined, 201);
 }));
 
 /** Whether the first-administrator web setup is needed / available (no secrets revealed). */
@@ -180,17 +207,9 @@ authRouter.post('/setup', setupLimiter, h(async (req, res) => {
     await audit(null, 'auth.setup_failed', 'system', 'setup', { ip: req.ip });
     throw new AppError(403, 'SETUP_TOKEN', 'The setup token is incorrect.');
   }
-  // Claim setup atomically so two concurrent requests cannot both create a first administrator.
-  // A claim older than a minute that produced no administrator (e.g. a crash) may be re-claimed.
-  const now = new Date();
-  const claimed = await SchoolSettings.findOneAndUpdate(
-    { _id: 'school', $or: [{ setupCompletedAt: null }, { setupCompletedAt: $cmp({ lt: new Date(now.getTime() - 60_000) }) }] },
-    { $set: { setupCompletedAt: now } },
-    { new: true }
-  ).lean();
-  if (!claimed || !(await setupRequired())) throw closed();
+  if (!(await claimFirstAdmin())) throw closed();
   if (await User.exists({ username: body.username })) {
-    await SchoolSettings.updateOne({ _id: 'school' }, { $set: { setupCompletedAt: null } });
+    await releaseFirstAdmin();
     throw conflict('That username is already taken');
   }
   const user = await createVersioned(User, {

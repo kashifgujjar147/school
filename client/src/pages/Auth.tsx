@@ -200,6 +200,7 @@ export function RegisterPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const nav = useNavigate();
   if (user) return <Navigate to={homeFor(user.role)} replace />;
   const check = registerSchema.safeParse(v);
   const errs = fieldErrors(check);
@@ -212,7 +213,12 @@ export function RegisterPage() {
     if (!check.success) return;
     setBusy(true); setError(null);
     try {
-      const r = await post<{ username: string }>('/api/auth/register', v);
+      const r = await post<{ username: string; role: string }>('/api/auth/register', v);
+      // The school's first account is created as principal: sign straight in to the admin dashboard.
+      if (r.role === 'principal') {
+        const s = await signIn(v.email, v.password, 'staff');
+        if (s.ok) { nav('/admin', { replace: true }); return; }
+      }
       setDone(r.username);
     } catch (err) { setError(errorMessage(err, t('errorGeneric'))); } finally { setBusy(false); }
   };
