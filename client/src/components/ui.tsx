@@ -1,8 +1,9 @@
 import { forwardRef, useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { AlertTriangle, CheckCircle2, Inbox, Info, Loader2, X, XCircle } from 'lucide-react';
 import { useT } from '../i18n';
-import { ApiError, NetworkError } from '../services/api';
+import { ApiError, NetworkError, QueuedOfflineError } from '../services/api';
 
 export function Button({ variant = 'primary', loading, className, children, ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost'; loading?: boolean }) {
   return (
@@ -147,6 +148,7 @@ export function EmptyState({ title, children, icon }: { title?: ReactNode; child
 }
 
 export function errorMessage(e: unknown, fallback: string): string {
+  if (e instanceof QueuedOfflineError) return e.message;
   if (e instanceof NetworkError) return 'The school server cannot be reached. Check the connection.';
   if (e instanceof ApiError) return e.message;
   return fallback;
@@ -193,7 +195,9 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
     return () => { document.removeEventListener('keydown', onKey); prev?.focus(); };
   }, [open]);
   if (!open) return null;
-  return (
+  // Portal to <body>: a dialog opened inside a blurred / transformed container (sticky header, animated
+  // page) must still cover the whole screen.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex animate-fade-in items-end justify-center bg-night/45 p-0 backdrop-blur-[3px] sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} className={clsx('max-h-[92vh] w-full animate-sheet-up overflow-y-auto rounded-t-3xl bg-white shadow-overlay sm:animate-pop-in sm:rounded-3xl', wide ? 'sm:max-w-3xl' : 'sm:max-w-lg')}>
         <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-surface-line bg-white/95 px-5 py-4 backdrop-blur sm:px-6">
@@ -203,7 +207,8 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
         <div className="px-5 py-5 sm:px-6">{children}</div>
         {footer && <div className="sticky bottom-0 flex justify-end gap-2 border-t border-surface-line bg-surface-muted/90 px-5 py-4 backdrop-blur sm:px-6">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

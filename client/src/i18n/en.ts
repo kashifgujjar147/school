@@ -450,6 +450,11 @@ export const en = {
   authPoint1: 'Attendance, academics and fees in one place',
   authPoint2: 'Keeps working offline and syncs when you reconnect',
   authPoint3: 'Private, role-based access for every member',
+  offlineQueue: 'Saved offline',
+  offlineQueueHint: 'Changes made without internet are kept on this device and sent to the school server automatically, in order, as soon as the connection returns.',
+  offlinePending: 'Waiting',
+  offlineSent: 'Sent',
+  offlineDiscardConfirm: 'Delete this change? It has not reached the school server and will be lost.',
   ...featuresEn,
   ...timetableEn
 } as const;

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import {
@@ -9,10 +9,11 @@ import {
 import type { Permission } from '@sms/shared';
 import { useAuth } from '../store/auth';
 import { useConnectivity } from '../store/connectivity';
-import { useOutbox, flushOutbox } from '../sync/outbox';
+import { useOutbox, flushOutbox, discardOutboxItem, requeueOutboxItem } from '../sync/outbox';
+import { db, type OutboxItem } from '../offline/db';
 import { useLang, useT, useFormat, type TKey } from '../i18n';
 import { signOut } from '../services/session';
-import { Alert } from './ui';
+import { Alert, Badge, Button, Modal } from './ui';
 
 interface NavItem { to: string; label: TKey; icon: ReactNode; perm?: Permission; standard?: boolean; group?: TKey }
 
@@ -58,24 +59,65 @@ const PARENT_NAV: NavItem[] = [
   { to: '/parent/notifications', label: 'navNotifications', icon: <Bell /> }
 ];
 
+/** Everything saved on this device while offline: what is waiting, what was sent, what was refused. */
+function OutboxPanel({ onClose }: { onClose: () => void }) {
+  const t = useT(); const f = useFormat();
+  const userId = useAuth((s) => s.user?.id);
+  const { flushing } = useOutbox();
+  const [items, setItems] = useState<OutboxItem[]>([]);
+  const load = useCallback(async () => {
+    if (!userId) return;
+    setItems((await db.outbox.where('userId').equals(userId).toArray()).sort((a, b) => b.createdAt - a.createdAt));
+  }, [userId]);
+  useEffect(() => { void load(); }, [load, flushing]);
+  useEffect(() => useOutbox.subscribe(() => void load()), [load]);
+  const tone: Record<OutboxItem['status'], 'amber' | 'blue' | 'green' | 'red'> = { pending: 'amber', sending: 'blue', synced: 'green', conflict: 'red', failed: 'red', auth_required: 'amber' };
+  const label: Record<OutboxItem['status'], TKey> = { pending: 'offlinePending', sending: 'syncing', synced: 'offlineSent', conflict: 'needsAttention', failed: 'needsAttention', auth_required: 'signInAgainToSync' };
+  return (
+    <Modal open onClose={onClose} title={t('offlineQueue')} wide footer={<><Button variant="secondary" onClick={onClose}>{t('close')}</Button><Button loading={flushing} onClick={() => void flushOutbox()}><RefreshCw className="h-4 w-4" />{t('syncNow')}</Button></>}>
+      <p className="mb-4 text-sm text-ink-soft">{t('offlineQueueHint')}</p>
+      {items.length === 0 ? <p className="py-8 text-center text-sm text-ink-faint">{t('allSynced')}</p> : (
+        <ul className="divide-y divide-surface-line rounded-xl border border-surface-line">
+          {items.map((i) => (
+            <li key={i.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-ink">{i.label}</p>
+                <p className="num text-xs text-ink-faint">{f.dateTime(new Date(i.createdAt))}{i.attempts > 0 ? ` · ${i.attempts}×` : ''}</p>
+                {i.lastError && i.status !== 'synced' && <p className="mt-1 text-xs text-red-700">{i.lastError}</p>}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge color={tone[i.status]}>{t(label[i.status])}</Badge>
+                {(i.status === 'failed' || i.status === 'conflict') && <Button variant="secondary" onClick={() => void requeueOutboxItem(i.id).then(() => flushOutbox())}>{t('retry')}</Button>}
+                {i.status !== 'sending' && <Button variant="ghost" onClick={() => { if (i.status === 'synced' || window.confirm(t('offlineDiscardConfirm'))) void discardOutboxItem(i.id); }}>{t('delete')}</Button>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Modal>
+  );
+}
+
 export function ConnectionIndicator() {
   const t = useT();
   const { browserOnline, serverReachable } = useConnectivity();
   const { pending, needsAttention, flushing } = useOutbox();
   const offlineSession = useAuth((s) => s.offlineSession);
   const connected = browserOnline && serverReachable && !offlineSession;
+  const [panel, setPanel] = useState(false);
   return (
     <div className="flex items-center gap-2">
+      {panel && <OutboxPanel onClose={() => setPanel(false)} />}
       <span className={clsx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset', connected ? 'bg-emerald-50 text-emerald-800 ring-emerald-700/15' : 'bg-amber-50 text-amber-900 ring-amber-700/20')} role="status" aria-live="polite">
         {connected ? <Cloud className="h-3.5 w-3.5" /> : <CloudOff className="h-3.5 w-3.5" />}
         {connected ? t('online') : !browserOnline ? t('offline') : t('serverUnreachable')}
       </span>
       {pending > 0 && (
-        <button onClick={() => void flushOutbox()} disabled={!connected || flushing} className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 disabled:opacity-80" title={t('syncNow')}>
+        <button onClick={() => { if (connected) void flushOutbox(); setPanel(true); }} className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 ring-1 ring-inset ring-sky-700/15 transition hover:bg-sky-100" title={t('offlineQueue')}>
           <RefreshCw className={clsx('h-3.5 w-3.5', flushing && 'animate-spin')} />{flushing ? t('syncing') : t('pendingSync', { n: pending })}
         </button>
       )}
-      {needsAttention > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700"><AlertTriangle className="h-3.5 w-3.5" />{needsAttention} {t('needsAttention')}</span>}
+      {needsAttention > 0 && <button onClick={() => setPanel(true)} className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-800 ring-1 ring-inset ring-red-700/15 transition hover:bg-red-100"><AlertTriangle className="h-3.5 w-3.5" />{needsAttention} {t('needsAttention')}</button>}
       {pending === 0 && needsAttention === 0 && connected && <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-label={t('allSynced')} />}
     </div>
   );

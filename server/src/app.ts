@@ -31,6 +31,7 @@ import { idCardsRouter, verifyRouter } from './modules/idcards.routes.js';
 import { analyticsRouter } from './modules/analytics.routes.js';
 import { backupsRouter } from './modules/backups.routes.js';
 import { healthRouter, systemRouter } from './modules/system.routes.js';
+import { idempotent } from './middleware/idempotency.js';
 import { websiteRouter } from './modules/website.routes.js';
 import { publicSiteRouter } from './modules/website-public.routes.js';
 import { injectHead, renderSiteHead, robotsTxt, sitemapXml } from './services/website-seo.js';
@@ -80,6 +81,10 @@ export function createApp() {
   api.use(attachUser);
   api.use('/auth', csrfProtect, authRouter);
   api.use(requireAuth, csrfProtect, parentFence);
+  // Offline outbox: any change a device queued without internet is re-sent with its Idempotency-Key.
+  // When a key was already processed (the response was lost on the way back), the stored response is
+  // replayed instead of applying the change twice. Requests without the header are unaffected.
+  api.use((req, res, next) => (req.method === 'GET' || req.method === 'HEAD' ? next() : idempotent(false)(req, res, next)));
   api.use('/parent', parentRouter);
   api.use('/student', studentRouter);
   api.use('/users', usersRouter);

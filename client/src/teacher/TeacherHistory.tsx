@@ -4,7 +4,7 @@ import { useGet, useAction } from '../hooks/useApi';
 import { useT, useFormat, type TKey } from '../i18n';
 import { useAuth } from '../store/auth';
 import { isConnected } from '../store/connectivity';
-import { NetworkError, post } from '../services/api';
+import { NetworkError, sendNow } from '../services/api';
 import { discardOutboxItem, enqueue, flushOutbox, requeueOutboxItem } from '../sync/outbox';
 import { Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader, Select, Spinner, STATUS_TONE, Table, Textarea } from '../components/ui';
 import { CacheNotice } from '../components/Layout';
@@ -36,7 +36,7 @@ export default function TeacherHistory() {
     const body = { attendanceId: corr!.attendanceId, studentId: corr!.studentId, newStatus, reason, clientOpId };
     // A correction is only a REQUEST: queued offline it stays pending until the principal reviews it online.
     if (!isConnected()) { await enqueue({ id: clientOpId, userId, kind: 'attendance.correction', method: 'POST', url: '/api/attendance/corrections', body, label: `${t('requestCorrection')}: ${corr!.name}` }); return 'offline'; }
-    try { await post('/api/attendance/corrections', body, { 'Idempotency-Key': clientOpId }); return 'online'; } catch (e) {
+    try { await sendNow('POST', '/api/attendance/corrections', body, { 'Idempotency-Key': clientOpId }); return 'online'; } catch (e) {
       if (e instanceof NetworkError) { await enqueue({ id: clientOpId, userId, kind: 'attendance.correction', method: 'POST', url: '/api/attendance/corrections', body, label: `${t('requestCorrection')}: ${corr!.name}` }); return 'offline'; }
       throw e;
     }

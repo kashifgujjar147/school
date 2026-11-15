@@ -6,6 +6,7 @@ import { App } from './App';
 import { bootstrap } from './services/session';
 import { installConnectivityListeners } from './store/connectivity';
 import { flushOutbox } from './sync/outbox';
+import { warmOfflineCache } from './offline/warmup';
 import { NetworkError } from './services/api';
 // Self-hosted typefaces (bundled: work offline and under the server's strict CSP; each file carries a
 // unicode-range, so browsers only download the subsets a page actually uses).
@@ -23,15 +24,22 @@ const queryClient = new QueryClient({
       staleTime: 15_000,
       refetchOnWindowFocus: true,
       // Don't hammer an unreachable server; cached data is served by the API layer.
-      retry: (n, e) => !(e instanceof NetworkError) && n < 2
-    }
+      retry: (n, e) => !(e instanceof NetworkError) && n < 2,
+      // React Query would otherwise PAUSE every request while the browser is offline, so pages would
+      // never reach the API layer that serves saved data offline.
+      networkMode: 'always'
+    },
+    // Same for saving: the API layer queues changes made offline (services/api.ts → sync/outbox.ts).
+    mutations: { networkMode: 'always' }
   }
 });
 
 installConnectivityListeners(() => {
-  void flushOutbox();
+  void flushOutbox().then(() => warmOfflineCache());
   void queryClient.invalidateQueries();
 });
+// Offline changes were delivered: refresh every page that may still show saved data.
+window.addEventListener('sms:outbox-synced', () => { void queryClient.invalidateQueries(); });
 // Periodic outbox flush while the app is open.
 setInterval(() => { void flushOutbox(); }, 30_000);
 

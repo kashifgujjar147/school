@@ -38,6 +38,28 @@ school server (Wi-Fi drop, LAN server rebooting, mobile data loss).
   WebCrypto, so device-level offline sign-in is unavailable there (online use is unaffected). See
   [offline-lan.md](../installation/offline-lan.md#https-on-lan-optional-recommended).
 
+## Full offline mode (every dashboard, every change)
+* **Reading:** the last good response of *every* authenticated `GET /api/*` request is kept per user
+  (sign-in endpoints and the public website excepted). When the exact URL was never saved, a saved response
+  that differs only in paging / search / sort is shown instead; filters such as classroom, date or status must
+  match exactly. An attendance register for a day never downloaded is built from the same classroom's saved
+  student list (no marks); the server re-checks everything when it syncs.
+* **Preparation:** after an online sign-in the app downloads, in the background, the data behind every
+  dashboard page the user may open (`client/src/offline/warmup.ts`) plus the code of every page, so pages
+  never visited still open offline. It is gentle on the server's per-IP rate limit: one request at a time,
+  at most once per 15 minutes per user and device, and it stops on HTTP 429.
+* **Writing:** any create / edit / delete made without a connection is stored in the outbox (`kind: generic`)
+  and replayed in order when the server is reachable. Every replay carries the outbox id as
+  `Idempotency-Key`; the server applies the key to all changes (`app.ts`), so a change whose response was lost
+  is never applied twice. Pressing Save again offline does not queue a duplicate. The user sees "saved on this
+  device"; the header pill opens the *Saved offline* panel (waiting / sent / needs attention, Retry, Delete).
+* **Online only** (need a live answer): sign-in, password resets, backups / restore, synchronisation, online
+  payments, timetable generation, test messages, file uploads and imports.
+* React Query runs with `networkMode: 'always'`, otherwise it would pause every request while offline and
+  the saved data would never be served.
+* Limits: a device must have signed in online once; changes reach other people only when this device is back
+  online; a refused change (e.g. edited meanwhile by someone else) stays in the panel for Retry or Delete.
+
 ## What is cached
 Only GET responses on an allow-list (`CACHEABLE` in `api.ts`), keyed per user. Admin pages show cached data
 read-only with the offline banner; actions that need the server show the server-unreachable error rather than

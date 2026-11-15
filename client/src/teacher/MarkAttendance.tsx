@@ -8,7 +8,7 @@ import { useGet } from '../hooks/useApi';
 import { useT, type TKey } from '../i18n';
 import { useAuth } from '../store/auth';
 import { isConnected } from '../store/connectivity';
-import { ApiError, NetworkError, post } from '../services/api';
+import { ApiError, NetworkError, sendNow } from '../services/api';
 import { db } from '../offline/db';
 import { enqueue } from '../sync/outbox';
 import { Alert, Badge, Button, Card, ErrorState, Input, Modal, PageHeader, Spinner } from '../components/ui';
@@ -94,7 +94,7 @@ export default function MarkAttendance() {
     };
     try {
       if (!isConnected() || useAuth.getState().offlineSession) { await offlineQueue(); return; }
-      await post('/api/attendance/submit', body, { 'Idempotency-Key': clientOpId });
+      await sendNow('POST', '/api/attendance/submit', body, { 'Idempotency-Key': clientOpId });
       await db.drafts.delete(draftKey);
       setResult({ kind: 'online' }); setReviewing(false);
       void qc.invalidateQueries();

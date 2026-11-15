@@ -50,7 +50,7 @@ test('teacher works offline; submission syncs when the connection returns', asyn
   await context.setOffline(false);
   // The app flushes automatically when the connection returns; press "sync now" only if it has not yet.
   const pendingBadge = page.getByText(/waiting to sync/);
-  if (await pendingBadge.isVisible()) await pendingBadge.click().catch(() => undefined);
+  if (await pendingBadge.isVisible()) await pendingBadge.click({ timeout: 2_000 }).catch(() => undefined);
   await expect(page.getByText(/waiting to sync/)).toHaveCount(0, { timeout: 30_000 });
   // Once delivered, the page itself switches to the submitted view (no duplicate submission offered).
   await expect(page.getByText('Attendance for this date is already submitted.')).toBeVisible();

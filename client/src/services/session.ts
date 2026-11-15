@@ -5,6 +5,7 @@ import { get, post, NetworkError, ApiError } from './api';
 import { offlineLogin, rememberForOffline } from '../offline/offlineAuth';
 import { db, purgeOtherUsers } from '../offline/db';
 import { flushOutbox, useOutbox } from '../sync/outbox';
+import { warmOfflineCache } from '../offline/warmup';
 
 function hexToRgb(hex: string) {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
@@ -39,7 +40,8 @@ export async function bootstrap() {
     const me = await get<{ user: SessionUser }>('/api/auth/me');
     auth.setUser(me.user);
     await useOutbox.getState().refresh();
-    void flushOutbox();
+    // Send anything queued offline first, then download every dashboard's data for offline use.
+    void flushOutbox().then(() => warmOfflineCache(true));
   } catch { /* not signed in, or offline: the login screen offers offline sign-in */ }
   auth.setReady();
 }
@@ -55,7 +57,8 @@ export async function signIn(username: string, password: string, portal?: 'staff
     // Password change is optional, so every successful online sign-in can be remembered for offline use.
     await rememberForOffline(username, password, me.user).catch(() => undefined);
     await useOutbox.getState().refresh();
-    void flushOutbox();
+    // Send anything queued offline first, then download every dashboard's data for offline use.
+    void flushOutbox().then(() => warmOfflineCache(true));
     return { ok: true, offline: false, mustChangePassword: false };
   } catch (e) {
     if (e instanceof NetworkError) {

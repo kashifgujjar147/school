@@ -1,4 +1,4 @@
-﻿import { lazy, Suspense, type ReactNode } from 'react';
+﻿import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import type { Permission } from '@sms/shared';
 import { useAuth } from './store/auth';
@@ -6,41 +6,50 @@ import { AdminLayout, ParentLayout, StudentLayout, TeacherLayout } from './compo
 import { Spinner, EmptyState } from './components/ui';
 import { LoginPage, ChangePasswordPage, ResetPasswordPage, RegisterPage, SetupPage, homeFor } from './pages/Auth';
 
+/**
+ * Every dashboard page is its own chunk. They are all registered here so that, after an online sign-in,
+ * they can be loaded in the background: navigating to any page then works offline, even one that was
+ * never opened (the service worker also keeps them for later visits).
+ */
+const pageLoaders: (() => Promise<unknown>)[] = [];
+function page<T>(load: () => Promise<T>) { pageLoaders.push(load); return load; }
+export const preloadAllPages = () => Promise.allSettled(pageLoaders.map((load) => load()));
+
 // The public website is its own chunk: visitors never download the dashboards, and staff never download the site.
 const PublicSite = lazy(() => import('./public/PublicSite').then((m) => ({ default: m.PublicSite })));
-const Overview = lazy(() => import('./admin/Overview'));
-const Students = lazy(() => import('./admin/Students'));
-const StudentProfile = lazy(() => import('./admin/StudentProfile'));
-const Classrooms = lazy(() => import('./admin/Classrooms'));
-const UsersPage = lazy(() => import('./admin/Users'));
-const AttendanceAdmin = lazy(() => import('./admin/Attendance'));
-const Corrections = lazy(() => import('./admin/Corrections'));
-const Guardians = lazy(() => import('./admin/Guardians'));
-const Sms = lazy(() => import('./admin/Sms'));
-const Reports = lazy(() => import('./admin/Reports'));
-const SettingsPage = lazy(() => import('./admin/Settings'));
-const WebsiteAdmin = lazy(() => import('./admin/cms'));
-const Security = lazy(() => import('./admin/Security'));
-const Health = lazy(() => import('./admin/Health'));
-const Backups = lazy(() => import('./admin/Backups'));
-const SyncPage = lazy(() => import('./admin/Sync'));
-const TeacherHome = lazy(() => import('./teacher/TeacherHome'));
-const MarkAttendance = lazy(() => import('./teacher/MarkAttendance'));
-const TeacherHistory = lazy(() => import('./teacher/TeacherHistory'));
-const TeacherCorrections = lazy(() => import('./teacher/TeacherCorrections'));
-const Fees = lazy(() => import('./admin/Fees'));
-const Exams = lazy(() => import('./admin/Exams'));
-const HomeworkPage = lazy(() => import('./admin/Homework'));
-const Analytics = lazy(() => import('./admin/Analytics'));
-const IdCards = lazy(() => import('./admin/IdCards'));
-const ParentHome = lazy(() => import('./parent/ParentHome'));
-const ChildDetail = lazy(() => import('./parent/ChildDetail'));
-const PaymentStatus = lazy(() => import('./parent/PaymentStatus'));
-const ParentNotifications = lazy(() => import('./parent/ParentNotifications'));
-const Verify = lazy(() => import('./pages/Verify'));
-const TimetableAdmin = lazy(() => import('./admin/timetable'));
-const TeacherTimetable = lazy(() => import('./teacher/TeacherTimetable'));
-const StudentHome = lazy(() => import('./student/StudentHome'));
+const Overview = lazy(page(() => import('./admin/Overview')));
+const Students = lazy(page(() => import('./admin/Students')));
+const StudentProfile = lazy(page(() => import('./admin/StudentProfile')));
+const Classrooms = lazy(page(() => import('./admin/Classrooms')));
+const UsersPage = lazy(page(() => import('./admin/Users')));
+const AttendanceAdmin = lazy(page(() => import('./admin/Attendance')));
+const Corrections = lazy(page(() => import('./admin/Corrections')));
+const Guardians = lazy(page(() => import('./admin/Guardians')));
+const Sms = lazy(page(() => import('./admin/Sms')));
+const Reports = lazy(page(() => import('./admin/Reports')));
+const SettingsPage = lazy(page(() => import('./admin/Settings')));
+const WebsiteAdmin = lazy(page(() => import('./admin/cms')));
+const Security = lazy(page(() => import('./admin/Security')));
+const Health = lazy(page(() => import('./admin/Health')));
+const Backups = lazy(page(() => import('./admin/Backups')));
+const SyncPage = lazy(page(() => import('./admin/Sync')));
+const TeacherHome = lazy(page(() => import('./teacher/TeacherHome')));
+const MarkAttendance = lazy(page(() => import('./teacher/MarkAttendance')));
+const TeacherHistory = lazy(page(() => import('./teacher/TeacherHistory')));
+const TeacherCorrections = lazy(page(() => import('./teacher/TeacherCorrections')));
+const Fees = lazy(page(() => import('./admin/Fees')));
+const Exams = lazy(page(() => import('./admin/Exams')));
+const HomeworkPage = lazy(page(() => import('./admin/Homework')));
+const Analytics = lazy(page(() => import('./admin/Analytics')));
+const IdCards = lazy(page(() => import('./admin/IdCards')));
+const ParentHome = lazy(page(() => import('./parent/ParentHome')));
+const ChildDetail = lazy(page(() => import('./parent/ChildDetail')));
+const PaymentStatus = lazy(page(() => import('./parent/PaymentStatus')));
+const ParentNotifications = lazy(page(() => import('./parent/ParentNotifications')));
+const Verify = lazy(page(() => import('./pages/Verify')));
+const TimetableAdmin = lazy(page(() => import('./admin/timetable')));
+const TeacherTimetable = lazy(page(() => import('./teacher/TeacherTimetable')));
+const StudentHome = lazy(page(() => import('./student/StudentHome')));
 
 type Area = 'staff' | 'parent' | 'student';
 const areaOf = (role: string): Area => (role === 'parent' ? 'parent' : role === 'student' ? 'student' : 'staff');
@@ -78,6 +87,14 @@ function AccountRedirect() {
 const P = (perm: Permission, el: ReactNode) => <RequireAuth perm={perm}>{el}</RequireAuth>;
 
 export function App() {
+  const userId = useAuth((s) => s.user?.id);
+  const offlineSession = useAuth((s) => s.offlineSession);
+  // Signed in with a connection: fetch every dashboard page's code in the background (offline readiness).
+  useEffect(() => {
+    if (!userId || offlineSession) return;
+    const t = window.setTimeout(() => { void preloadAllPages(); }, 1500);
+    return () => window.clearTimeout(t);
+  }, [userId, offlineSession]);
   return (
     <Suspense fallback={<Spinner />}>
       <Routes>

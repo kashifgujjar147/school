@@ -14,8 +14,9 @@ export type OutboxStatus = 'pending' | 'sending' | 'synced' | 'conflict' | 'fail
 export interface OutboxItem {
   id: string;                 // UUID → Idempotency-Key
   userId: string;
-  kind: 'attendance.submit' | 'attendance.correction';
-  method: 'POST';
+  /** 'generic': any other change made while offline (edit, create, delete...) replayed as-is. */
+  kind: 'attendance.submit' | 'attendance.correction' | 'generic';
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   url: string;
   body: Record<string, unknown>;
   label: string;              // human description, e.g. "Attendance 5-A, 2026-11-11"

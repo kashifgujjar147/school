@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { backoffMs } from '@sms/shared';
 import { db, type OutboxItem } from '../offline/db';
-import { ApiError, NetworkError, post } from '../services/api';
+import { ApiError, NetworkError, sendNow, type WriteMethod } from '../services/api';
 import { useAuth } from '../store/auth';
 import { newId } from '../services/uuid';
 
@@ -28,6 +28,21 @@ export const useOutbox = create<OutboxState>((set) => ({
   }
 }));
 
+/**
+ * Queues any change made without a connection (generic outbox item). Identical pending changes are not
+ * queued twice (e.g. pressing Save again while offline). Returns the outbox id (= Idempotency-Key).
+ */
+export async function enqueueChange(c: { method: WriteMethod; url: string; body: Record<string, unknown>; label: string; idempotencyKey?: string }): Promise<string> {
+  const userId = useAuth.getState().user?.id;
+  if (!userId) throw new NetworkError();
+  const same = (await db.outbox.where('userId').equals(userId).toArray())
+    .find((i) => i.kind === 'generic' && i.status === 'pending' && i.method === c.method && i.url === c.url && JSON.stringify(i.body) === JSON.stringify(c.body));
+  if (same) return same.id;
+  const id = c.idempotencyKey && /^[A-Za-z0-9-]{8,80}$/.test(c.idempotencyKey) ? c.idempotencyKey : newId();
+  await enqueue({ id, userId, kind: 'generic', method: c.method, url: c.url, body: c.body, label: c.label });
+  return id;
+}
+
 export async function enqueue(item: Omit<OutboxItem, 'status' | 'attempts' | 'nextAttemptAt' | 'createdAt'>) {
   await db.outbox.put({ ...item, status: 'pending', attempts: 0, nextAttemptAt: 0, createdAt: Date.now() });
   await useOutbox.getState().refresh();
@@ -46,14 +61,16 @@ async function doFlush() {
   const userId = auth.user?.id;
   if (!userId || auth.offlineSession) return; // needs a real server session
   useOutbox.setState({ flushing: true });
+  let sentAny = false;
   try {
     const due = (await db.outbox.where('userId').equals(userId).sortBy('createdAt'))
       .filter((i) => (i.status === 'pending' || i.status === 'auth_required' || i.status === 'sending') && i.nextAttemptAt <= Date.now());
     for (const item of due) {
       await db.outbox.update(item.id, { status: 'sending' });
       try {
-        const result = await post<unknown>(item.url, item.body, { 'Idempotency-Key': item.id, 'X-Offline-Origin': '1' });
+        const result = await sendNow<unknown>(item.method, item.url, item.body, { 'Idempotency-Key': item.id, 'X-Offline-Origin': '1' });
         await db.outbox.update(item.id, { status: 'synced', syncedAt: Date.now(), serverResult: result, lastError: undefined });
+        sentAny = true;
       } catch (e) {
         if (e instanceof NetworkError) {
           const attempts = item.attempts + 1;
@@ -83,6 +100,8 @@ async function doFlush() {
     await db.outbox.where('status').equals('synced').filter((i) => (i.syncedAt ?? 0) < Date.now() - 14 * 86_400_000).delete();
   } finally {
     useOutbox.setState({ flushing: false, lastFlushAt: Date.now() });
+    // Pages showing saved (offline) data reload from the server once queued changes are delivered.
+    if (sentAny) window.dispatchEvent(new Event('sms:outbox-synced'));
     await useOutbox.getState().refresh();
   }
 }
