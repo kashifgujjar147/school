@@ -1,11 +1,26 @@
 import ExcelJS from 'exceljs';
 
 /** Reads the first worksheet of an .xlsx or a .csv buffer into header-keyed rows. */
+/**
+ * Plain text of a cell. Date cells (Excel dates) become YYYY-MM-DD: Excel stores calendar dates without
+ * a time zone and exceljs exposes them at UTC midnight, so the UTC parts are the date the user typed.
+ * (cell.text would give "Tue Mar 06 2012 00:00:00 GMT+0500 …", which no date field accepts.)
+ */
+function cellText(cell: ExcelJS.Cell): string {
+  const v = cell.value;
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+  return String(cell.text ?? '').trim();
+}
+
 export async function readTable(buf: Buffer, filename: string): Promise<Record<string, string>[]> {
   const wb = new ExcelJS.Workbook();
   if (/\.csv$/i.test(filename)) {
     const { Readable } = await import('node:stream');
-    await wb.csv.read(Readable.from(buf));
+    // Keep every CSV value exactly as written. exceljs' default mapper turns "2012-03-06" into a local
+    // Date (breaking YYYY-MM-DD validation) and "03001234567" into a number (dropping the leading 0).
+    // Strip a UTF-8 BOM so the first header ("admissionNumber") still matches when Excel saved the file.
+    const text = buf.toString('utf8').replace(/^﻿/, '');
+    await wb.csv.read(Readable.from([text]), { map: (value: unknown) => value });
   } else {
     // exceljs declares its input as an ArrayBuffer; pass an exact-length copy (uploads are capped at 5 MB).
     await wb.xlsx.load(new Uint8Array(buf).buffer);
@@ -21,7 +36,7 @@ export async function readTable(buf: Buffer, filename: string): Promise<Record<s
     let any = false;
     headers.forEach((hName, i) => {
       if (!hName) return;
-      const v = String(row.getCell(i).text ?? '').trim();
+      const v = cellText(row.getCell(i));
       if (v) any = true;
       r[hName] = v;
     });

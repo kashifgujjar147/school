@@ -196,4 +196,25 @@ describe('student import from .xlsx', () => {
     expect(real.body.data.imported).toBe(1);
     expect(await Student.exists({ admissionNumberLower: 'x-100', classroomId: w.classroomId })).toBeTruthy();
   });
+
+  it('CSV import keeps YYYY-MM-DD dates and leading-zero phones exactly as written (BOM tolerated)', async () => {
+    const csv = '﻿admissionNumber,fullName,dateOfBirth,gender,class,section,admissionDate,emergencyContactName,emergencyContactPhone,address\n'
+      + 'm3,Ayaan Ahmed,2012-03-06,male,Grade 5,A,2023-05-13,Ali,03001234567,\n'
+      + 'm4,Hassan Ali,2014-07-25,male,Grade 5,A,2024-06-06,,,\n';
+    const p = await login(w.app, 'principal');
+    const dry = await p.agent.post('/api/students/import?dryRun=true').set('x-csrf-token', p.csrf).attach('file', Buffer.from(csv), 'students.csv');
+    expect(dry.body.data).toMatchObject({ totalRows: 2, validRows: 2, invalidRows: 0 });
+    const real = await p.agent.post('/api/students/import?dryRun=false').set('x-csrf-token', p.csrf).attach('file', Buffer.from(csv), 'students.csv');
+    expect(real.body.data.imported).toBe(2);
+    expect(await Student.findOne({ admissionNumberLower: 'm3' }).lean()).toMatchObject({ dateOfBirth: '2012-03-06', admissionDate: '2023-05-13', emergencyContactPhone: '03001234567' });
+  });
+
+  it('xlsx import turns real Excel date cells into YYYY-MM-DD', async () => {
+    const cols = ['admissionNumber', 'fullName', 'dateOfBirth', 'class', 'section'].map((k) => ({ header: k, key: k }));
+    const xlsx = await toXlsx('Students', cols, [{ admissionNumber: 'X-200', fullName: 'Dated Pupil', dateOfBirth: new Date(Date.UTC(2013, 11, 3)), class: 'Grade 5', section: 'A' }]);
+    const p = await login(w.app, 'principal');
+    const real = await p.agent.post('/api/students/import?dryRun=false').set('x-csrf-token', p.csrf).attach('file', xlsx, 'students.xlsx');
+    expect(real.body.data).toMatchObject({ imported: 1, invalidRows: 0 });
+    expect((await Student.findOne({ admissionNumberLower: 'x-200' }).lean())!.dateOfBirth).toBe('2013-12-03');
+  });
 });
