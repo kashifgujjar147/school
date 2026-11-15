@@ -1,0 +1,42 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+server/data/
+data/
+.test-data/
+coverage/
+playwright-report/
+test-results/
+*.log
+.DS_Store
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+server/.env
+client/.env
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+server/.env
+client/.env
+
+# Dependencies and generated files
+node_modules/
+dist/
+coverage/
+test-results/
+
+# Local backups and temporary scripts
+patch-backups/
+server/src/scripts/reset-principal-password.ts

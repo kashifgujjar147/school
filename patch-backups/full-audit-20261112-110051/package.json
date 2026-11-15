@@ -1,0 +1,36 @@
+{
+  "name": "school-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Independent-deployment School Management System (MongoDB Atlas + local MongoDB, online/offline/LAN/hybrid)",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "postinstall": "npm run build -w shared",
+    "build": "npm run build -w shared && npm run build -w server && npm run build -w client",
+    "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w client",
+    "dev": "concurrently -n server,client \"npm run dev -w server\" \"npm run dev -w client\"",
+    "start": "npm run start -w server",
+    "test": "npm run test -w shared && npm run test -w server && npm run test -w client",
+    "test:logic": "node --import tsx --test shared/src/logic/*.test.ts",
+    "test:e2e": "playwright test -c tests/e2e/playwright.config.ts",
+    "seed:demo": "npm run seed:demo -w server",
+    "init:school": "npm run init:school -w server",
+    "backup": "npm run backup -w server",
+    "migrate": "npm run migrate -w server",
+    "verify:syntax": "node scripts/verify-syntax.mjs",
+    "package:zip": "node scripts/package-zip.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "concurrently": "^9.0.1",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  }
+}
