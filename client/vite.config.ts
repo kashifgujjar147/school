@@ -18,6 +18,18 @@ function precacheManifest(): Plugin {
   };
 }
 
+/**
+ * Hosted with a separate API service (e.g. Railway: frontend and backend on different domains): the
+ * preview server forwards /api and /uploads to the backend, so the browser only ever talks to ONE
+ * origin. Session and CSRF cookies are then first-party; across two domains the browser would refuse
+ * to send them (login "succeeds" but every next request says "Authentication required").
+ * Target: API_PROXY_TARGET, or the existing VITE_API_BASE_URL variable.
+ */
+const apiTarget = (process.env.API_PROXY_TARGET || process.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+const previewProxy = apiTarget
+  ? Object.fromEntries(['/api', '/uploads'].map((p) => [p, { target: apiTarget, changeOrigin: true, secure: true, xfwd: true }]))
+  : undefined;
+
 export default defineConfig({
   plugins: [react(), precacheManifest()],
   server: {
@@ -25,7 +37,8 @@ export default defineConfig({
     proxy: { '/api': 'http://localhost:8080', '/uploads': 'http://localhost:8080' }
   },
   preview: {
-    allowedHosts: ['smsclient-production.up.railway.app']
+    allowedHosts: ['smsclient-production.up.railway.app'],
+    proxy: previewProxy
   },
 
   build: { outDir: 'dist', sourcemap: false, chunkSizeWarningLimit: 900 },
