@@ -67,7 +67,7 @@ export function Header({ overHero, pathHref }: { overHero: boolean; pathHref: st
   }, [open]);
 
   return (
-    <header className={clsx('site-header fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow,color] duration-500', light ? 'is-light text-white' : 'bg-white/90 text-site-ink shadow-[0_1px_0_rgb(16_24_40/0.06),0_10px_30px_-18px_rgb(13_16_51/0.35)] backdrop-blur-xl')}>
+    <header className={clsx('site-header fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow,color] duration-500', light ? 'is-light text-white' : open ? 'bg-site-bg text-site-ink shadow-[0_1px_0_rgb(16_24_40/0.06)]' : 'bg-white/90 text-site-ink shadow-[0_1px_0_rgb(16_24_40/0.06),0_10px_30px_-18px_rgb(13_16_51/0.35)] backdrop-blur-xl')}>
       <a href="#site-main" className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-3 focus:z-[60] focus:bg-white focus:px-4 focus:py-2 focus:text-site-ink">{s('skipToContent')}</a>
       <div className={clsx('mx-auto flex max-w-site items-center justify-between gap-6 px-6 transition-[height] duration-500 sm:px-10 lg:px-14', scrolled ? 'h-[4.5rem] xl:h-16' : 'h-24 xl:h-[5.25rem]')}>
         <Brand light={light} />
@@ -77,6 +77,8 @@ export function Header({ overHero, pathHref }: { overHero: boolean; pathHref: st
           <button type="button" className="flex h-11 w-11 items-center justify-center xl:hidden" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="site-mobile-nav" aria-label={open ? s('close') : s('menu')}>{open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}</button>
         </div>
       </div>
+      {/* backdrop-blur is dropped while the mobile menu is open: a backdrop-filter would make this header the
+          containing block of the fixed menu panel, squeezing it into the header bar. */}
       {/* Desktop: the menu has its own row, so long school names and translated labels never collide. */}
       <div className={clsx('hidden border-t xl:block', light ? 'border-white/20' : 'site-hair')}>
         <nav className="mx-auto flex h-12 max-w-site items-center gap-9 px-6 sm:px-10 lg:px-14" aria-label={s('menu')}>
