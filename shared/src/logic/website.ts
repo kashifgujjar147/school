@@ -170,7 +170,8 @@ function isTransformSegment(s: string): boolean {
 /** True when a stored media reference points at something this installation is allowed to embed. */
 export function isValidMediaRef(ref: { kind: string; provider: string; url: string }): boolean {
   if (ref.provider === 'local') {
-    return /^\/uploads\/website\/[a-z0-9-]+\.(png|jpg|webp|mp4|webm)$/.test(ref.url) && (ref.kind === 'video') === /\.(mp4|webm)$/.test(ref.url);
+    // Uploaded files, or photos bundled with the app (/site-assets/<folder>/<name>.jpg: demo / brand imagery).
+    return /^\/(?:uploads\/website|site-assets\/[a-z0-9-]+)\/[a-z0-9-]+\.(png|jpg|webp|mp4|webm)$/.test(ref.url) && (ref.kind === 'video') === /\.(mp4|webm)$/.test(ref.url);
   }
   const c = classifyMediaUrl(ref.url);
   return c.ok && c.provider === ref.provider && c.kind === ref.kind;
@@ -277,6 +278,8 @@ export interface SiteTheme {
 }
 
 export const THEME_PRESETS: Record<string, { name: string } & Omit<SiteTheme, 'preset'>> = {
+  // The Alpha School System brand: logo navy + sky blue.
+  alpha: { name: 'Alpha Navy & Sky', primary: '#1c1f5e', secondary: '#0d1033', accent: '#29abe2', background: 'mist', headingFont: 'serif-modern', bodyFont: 'sans', radius: 'soft', buttonStyle: 'solid', headerStyle: 'overlay', footerStyle: 'dark' },
   heritage: { name: 'Heritage Navy', primary: '#14284b', secondary: '#0b1830', accent: '#b8924a', background: 'ivory', headingFont: 'serif-classic', bodyFont: 'sans', radius: 'sharp', buttonStyle: 'solid', headerStyle: 'overlay', footerStyle: 'dark' },
   emerald: { name: 'Emerald Classic', primary: '#0f3d33', secondary: '#082620', accent: '#c2a15a', background: 'ivory', headingFont: 'serif-classic', bodyFont: 'sans', radius: 'soft', buttonStyle: 'solid', headerStyle: 'overlay', footerStyle: 'dark' },
   burgundy: { name: 'Burgundy Scholar', primary: '#5a1a2b', secondary: '#3a0f1b', accent: '#c9a66b', background: 'stone', headingFont: 'serif-modern', bodyFont: 'serif', radius: 'sharp', buttonStyle: 'solid', headerStyle: 'overlay', footerStyle: 'dark' },
@@ -305,7 +308,7 @@ export const readableOn = (bg: string): '#ffffff' | '#111827' => (contrastRatio(
  * presets / fonts fall back to safe defaults, so a bad value can never break the design.
  */
 export function themeCssVars(theme: Partial<SiteTheme> | null | undefined, lang = 'en'): Record<string, string> {
-  const base = THEME_PRESETS.heritage!;
+  const base = THEME_PRESETS.alpha!;
   const hex = (v: unknown, d: string) => (typeof v === 'string' && HEX.test(v) ? v : d);
   const primary = hex(theme?.primary, base.primary);
   const secondary = hex(theme?.secondary, base.secondary);

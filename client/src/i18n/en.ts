@@ -445,7 +445,7 @@ export const en = {
   navGroupEngagement: 'Communication',
   navGroupSystem: 'System',
   welcomeBack: 'Welcome back, {name}',
-  authHeadline: 'One home for the whole school community.',
+  authHeadline: 'Learn, grow and succeed — together.',
   authTagline: 'Sign in to manage classes, attendance, academics and communication: securely, from anywhere on campus.',
   authPoint1: 'Attendance, academics and fees in one place',
   authPoint2: 'Keeps working offline and syncs when you reconnect',

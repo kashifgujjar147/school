@@ -1,7 +1,6 @@
 import { existsSync } from 'node:fs';
-import path from 'node:path';
 import PDFDocument from 'pdfkit';
-import { uploadDir } from './uploads.js';
+import { drawableUpload } from './documents.js';
 
 export interface PdfTable {
   title: string;
@@ -31,7 +30,7 @@ export function renderPdf(table: PdfTable, brand: Branding): Promise<Buffer> {
     const pageW = doc.page.width - 72;
     const header = () => {
       const top = 36;
-      const logoAbs = brand.logoPath ? path.join(uploadDir, brand.logoPath.replace('/uploads/', '')) : null;
+      const logoAbs = drawableUpload(brand.logoPath);
       let x = 36;
       if (logoAbs && existsSync(logoAbs) && !logoAbs.endsWith('.webp')) {
         try { doc.image(logoAbs, 36, top, { fit: [44, 44] }); x = 90; } catch { /* unsupported image */ }

@@ -6,15 +6,18 @@ import { WEBSITE_LANGUAGE_NAMES, sitePath } from '@sms/shared';
 import { SiteLink, useSite } from './context';
 import { useScrolled } from './hooks';
 import { ContactDetails } from './Sections';
+import { BRAND, logoOf, splitSchoolName } from '../../brand';
 
-function Brand({ light }: { light: boolean }) {
+function Brand({ light, size = 'md' }: { light: boolean; size?: 'md' | 'lg' }) {
   const { boot, url } = useSite();
+  const [main, sub] = splitSchoolName(boot.school.name);
   return (
-    <Link to={url('/') ?? '/site'} className="flex min-w-0 items-center gap-3" aria-label={boot.school.name}>
-      {boot.school.logoUrl
-        ? <img src={boot.school.logoUrl} alt="" className="h-11 w-11 shrink-0 object-contain" />
-        : <span className={clsx('flex h-11 w-11 shrink-0 items-center justify-center border font-display text-xl', light ? 'border-white/60' : 'border-site-primary/40 text-site-primary')} style={{ borderRadius: 'var(--site-radius)' }} aria-hidden>{boot.school.name.trim().charAt(0)}</span>}
-      <span className="line-clamp-2 font-display text-lg leading-tight sm:text-[1.35rem]">{boot.school.name}</span>
+    <Link to={url('/') ?? '/site'} className="site-brand group flex min-w-0 items-center gap-3.5" aria-label={boot.school.name}>
+      <img src={logoOf(boot.school.logoUrl)} alt="" className={clsx('site-brand-logo shrink-0 rounded-full bg-white object-contain p-[2px]', size === 'lg' ? 'h-20 w-20' : 'h-12 w-12 sm:h-14 sm:w-14', light ? 'shadow-[0_6px_24px_-6px_rgb(0_0_0/0.45)]' : 'shadow-[0_0_0_1px_rgb(var(--site-primary)/0.08)]')} />
+      <span className="min-w-0">
+        <span className="line-clamp-2 block font-display text-[1.05rem] font-semibold leading-tight sm:text-[1.3rem]">{main}</span>
+        {sub && <span className={clsx('mt-1 block text-[0.66rem] font-semibold uppercase tracking-[0.28em] rtl:tracking-normal', light ? 'text-site-accent' : 'text-site-accent-text')}>{sub}</span>}
+      </span>
     </Link>
   );
 }
@@ -64,7 +67,7 @@ export function Header({ overHero, pathHref }: { overHero: boolean; pathHref: st
   }, [open]);
 
   return (
-    <header className={clsx('fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow,color] duration-500', light ? 'text-white' : 'bg-site-bg/95 text-site-ink shadow-[0_1px_0_rgb(16_24_40/0.08)] backdrop-blur-md')}>
+    <header className={clsx('site-header fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow,color] duration-500', light ? 'is-light text-white' : 'bg-white/90 text-site-ink shadow-[0_1px_0_rgb(16_24_40/0.06),0_10px_30px_-18px_rgb(13_16_51/0.35)] backdrop-blur-xl')}>
       <a href="#site-main" className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-3 focus:z-[60] focus:bg-white focus:px-4 focus:py-2 focus:text-site-ink">{s('skipToContent')}</a>
       <div className={clsx('mx-auto flex max-w-site items-center justify-between gap-6 px-6 transition-[height] duration-500 sm:px-10 lg:px-14', scrolled ? 'h-[4.5rem] xl:h-16' : 'h-24 xl:h-[5.25rem]')}>
         <Brand light={light} />
@@ -134,7 +137,8 @@ export function Footer() {
     <footer className={clsx(dark ? 'site-on-dark bg-site-secondary text-white' : 'border-t site-hair bg-white text-site-ink')}>
       <div className="mx-auto grid max-w-site gap-14 px-6 py-20 sm:px-10 lg:grid-cols-12 lg:px-14">
         <div className="lg:col-span-4">
-          <Brand light={dark} />
+          <Brand light={dark} size="lg" />
+          <p className={clsx('mt-6 font-display text-xl italic', dark ? 'text-site-accent' : 'text-site-accent-text')}>{BRAND.tagline}</p>
           {t(f.about) && <p className="mt-6 max-w-sm leading-relaxed opacity-75">{t(f.about)}</p>}
           {f.showSocial && social.length > 0 && (
             <ul className="mt-8 flex gap-3" aria-label={s('followUs')}>

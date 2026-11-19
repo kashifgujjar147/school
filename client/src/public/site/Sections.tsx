@@ -10,7 +10,7 @@ import { CollectionItems, MediaGrid } from './Collections';
 import { SectionIcon } from './icons';
 import { useCountUp, useInView } from './hooks';
 
-const BG = { default: '', muted: 'bg-site-primary/[0.045]', dark: 'site-on-dark bg-site-secondary text-white', brand: 'site-on-dark bg-site-primary text-site-on-primary' } as const;
+const BG = { default: '', muted: 'bg-site-primary/[0.045]', dark: 'site-on-dark bg-site-secondary text-white', brand: 'site-on-dark site-brand-bg bg-site-primary text-site-on-primary' } as const;
 const PAD = { compact: 'py-14 sm:py-16', normal: 'py-20 sm:py-28', spacious: 'py-28 sm:py-40' } as const;
 
 function Shell({ section, children, wide }: { section: Section; children: ReactNode; wide?: boolean }) {
@@ -79,7 +79,7 @@ function TextImage({ section }: { section: Section }) {
         <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-20">
           <div className="lg:col-span-6">{text}</div>
           <div className={clsx('site-reveal lg:col-span-6', c.imagePosition === 'start' && 'lg:order-first')}>
-            {c.image && <div className={clsx('site-media', c.video ? 'aspect-[16/10]' : 'aspect-[4/3] w-full lg:aspect-[4/5] lg:max-h-[42rem]')}><SiteImage media={c.image} fallbackAlt={t(c.personName) || t(c.heading)} sizes="(min-width:1024px) 50vw, 100vw" /></div>}
+            {c.image && <div className={clsx('site-frame', c.imagePosition === 'start' && 'is-start')}><div className={clsx('site-media', c.video ? 'aspect-[16/10]' : 'aspect-[4/3] w-full lg:aspect-[4/5] lg:max-h-[42rem]')}><SiteImage media={c.image} fallbackAlt={t(c.personName) || t(c.heading)} sizes="(min-width:1024px) 50vw, 100vw" /></div></div>}
             {c.video && <div className={clsx(c.image && 'mt-5')}><SiteVideo video={c.video} title={t(c.heading)} /></div>}
           </div>
         </div>

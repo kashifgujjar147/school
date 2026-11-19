@@ -16,7 +16,7 @@ function precacheManifest(): Plugin {
       const unusedFont = (f: string) => f.endsWith('.woff') || (/\.woff2$/.test(f) && /-(cyrillic|greek|vietnamese)(-ext)?-/.test(f));
       const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && !unusedFont(f)).map((f) => '/' + f);
       const version = Date.now().toString(36);
-      this.emitFile({ type: 'asset', fileName: 'precache-manifest.json', source: JSON.stringify({ version, files: ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', ...files] }) });
+      this.emitFile({ type: 'asset', fileName: 'precache-manifest.json', source: JSON.stringify({ version, files: ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/brand/alpha-logo.png', '/brand/favicon.png', ...files] }) });
     }
   };
 }

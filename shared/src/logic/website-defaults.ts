@@ -138,7 +138,7 @@ export function defaultPages(s: DefaultsInput): DefaultPage[] {
 
 export function defaultSiteContent(s: DefaultsInput): Record<string, unknown> {
   const hex = (v: string | null | undefined, d: string) => (v && /^#[0-9a-fA-F]{6}$/.test(v) ? v : d);
-  const primary = hex(s.primaryColor, '#1e3a5f');
+  const primary = hex(s.primaryColor, '#1c1f5e');
   const item = (id: string, en: string, ur: string, href: string, children: [string, string, string][] = []) => ({ id, label: L(en, ur), href, children: children.map(([e, u, h], i) => ({ id: `${id}-${i + 1}`, label: L(e, u), href: h })) });
   const phoneOk = s.phone && /^\+?[0-9()\- ]{5,30}$/.test(s.phone.trim());
   const emailOk = s.email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.email.trim());
@@ -165,7 +165,7 @@ export function defaultSiteContent(s: DefaultsInput): Record<string, unknown> {
       copyright: L('All rights reserved.', 'جملہ حقوق محفوظ ہیں۔'), showSocial: true
     },
     contact: { address: one(s.address), phones: phoneOk ? [s.phone!.trim()] : [], email: emailOk ? s.email!.trim() : '' },
-    theme: { preset: 'school', primary, secondary: shade(primary), accent: hex(s.accentColor, '#c8963e') },
+    theme: { preset: 'alpha', primary, secondary: shade(primary), accent: hex(s.accentColor, '#29abe2'), background: 'mist', headingFont: 'serif-modern', radius: 'soft' },
     seo: { siteTitle: L(s.name), description: one(s.description) },
     languages: { enabled: ['en', 'ur'], default: s.defaultLanguage === 'ur' ? 'ur' : 'en' }
   };

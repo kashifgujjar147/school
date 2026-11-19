@@ -9,6 +9,7 @@ export * from './types.js';
 export * from './logic/website.js';
 export * from './schemas/website.js';
 export * from './logic/website-defaults.js';
+export * from './logic/website-alpha.js';
 export * from './logic/fees.js';
 export * from './logic/exams.js';
 export * from './schemas/features.js';

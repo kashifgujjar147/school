@@ -146,3 +146,42 @@ html:not([dir='rtl']) .site-root h1 { letter-spacing: -0.018em; }
 @media (prefers-reduced-motion: reduce) {
   .site-media { animation: none !important; }
 }
+
+/* ---- Alpha School brand layer: navy + sky, restrained depth, no continuous motion ---- */
+/* Header over the hero: a soft scrim keeps the logo and menu legible on any photo. */
+.site-header.is-light::before { content: ''; position: absolute; inset: 0 0 -3rem; z-index: -1; pointer-events: none; background: linear-gradient(to bottom, rgb(8 10 34 / 0.55), rgb(8 10 34 / 0)); }
+.site-brand-logo { transition: transform 0.6s var(--ease-lux); }
+.site-brand:hover .site-brand-logo { transform: rotate(-6deg) scale(1.03); }
+
+/* Photos beside text sit on an offset sky-blue frame. */
+.site-frame { position: relative; isolation: isolate; }
+.site-frame::before { content: ''; position: absolute; z-index: -1; inset: 1.5rem -1.5rem -1.5rem 1.5rem; border: 1px solid rgb(var(--site-accent) / 0.55); border-radius: var(--site-radius); transition: transform 0.9s var(--ease-lux); }
+.site-frame.is-start::before, html[dir='rtl'] .site-frame::before { inset: 1.5rem 1.5rem -1.5rem -1.5rem; }
+html[dir='rtl'] .site-frame.is-start::before { inset: 1.5rem -1.5rem -1.5rem 1.5rem; }
+.site-frame::after { content: ''; position: absolute; z-index: 2; width: 5.5rem; height: 5.5rem; bottom: -1.5rem; inset-inline-start: -1.5rem; border-radius: 9999px; background: radial-gradient(circle, rgb(var(--site-accent)) 0 2px, transparent 2.5px) 0 0 / 14px 14px; opacity: 0.55; pointer-events: none; }
+.site-frame:hover::before { transform: translate(-0.5rem, -0.5rem); }
+@media (max-width: 1023px) { .site-frame::before { inset: 1rem -0.75rem -0.75rem 1rem; } .site-frame::after { display: none; } }
+
+/* Brand-coloured bands: depth from light, not decoration. */
+.site-root section.site-brand-bg { background-image: radial-gradient(60rem 30rem at 85% -20%, rgb(var(--site-accent) / 0.28), transparent 60%), radial-gradient(40rem 24rem at -10% 120%, rgb(255 255 255 / 0.07), transparent 60%); }
+.site-root section.site-on-dark { background-image: radial-gradient(50rem 26rem at 100% 0%, rgb(var(--site-accent) / 0.16), transparent 60%); }
+
+/* Cards: crisp white surfaces with a sky accent line that draws in on hover. */
+.site-card { position: relative; overflow: hidden; background: #fff; box-shadow: 0 1px 2px rgb(13 16 51 / 0.04), 0 12px 32px -24px rgb(13 16 51 / 0.25); }
+.site-card::before { content: ''; position: absolute; inset: 0 0 auto; height: 3px; background: linear-gradient(90deg, rgb(var(--site-primary)), rgb(var(--site-accent))); transform: scaleX(0); transform-origin: left; transition: transform 0.6s var(--ease-lux); }
+html[dir='rtl'] .site-card::before { transform-origin: right; }
+.site-card:hover::before { transform: scaleX(1); }
+.site-on-dark .site-card { background: rgb(255 255 255 / 0.05); }
+
+/* Image cards get a gentle navy wash on hover. */
+.site-zoom::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgb(13 16 51 / 0.35), transparent 55%); opacity: 0; transition: opacity 0.6s var(--ease-lux); pointer-events: none; }
+.site-zoom:hover::after, a:focus-visible .site-zoom::after { opacity: 1; }
+
+/* Primary buttons: navy with a sky glow on hover. */
+.site-btn-primary:hover { background: rgb(var(--site-secondary)); box-shadow: 0 10px 24px -12px rgb(var(--site-accent) / 0.7); }
+.site-btn-accent:hover { box-shadow: 0 10px 28px -10px rgb(var(--site-accent) / 0.8); }
+.site-btn { border-radius: max(var(--site-radius), 999px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .site-brand:hover .site-brand-logo, .site-frame:hover::before { transform: none; }
+}

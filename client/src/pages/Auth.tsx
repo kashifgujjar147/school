@@ -9,6 +9,7 @@ import { get, post } from '../services/api';
 import { signIn } from '../services/session';
 import { Alert, Button, Card, Input, PageHeader, errorMessage } from '../components/ui';
 import { LangSwitch } from '../components/Layout';
+import { BRAND, logoOf, splitSchoolName } from '../brand';
 
 /**
  * Post-login redirect target from ?next=. Only same-site paths are honoured: "//host" and "/\host"
@@ -24,10 +25,8 @@ export function safeNext(next: string | null): string | null {
 
 function SchoolMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
   const config = useAuth((s) => s.config);
-  const box = size === 'lg' ? 'h-14 w-14 text-2xl' : 'h-12 w-12 text-xl';
-  return config?.logoUrl
-    ? <img src={config.logoUrl} alt="" className={clsx(box, 'rounded-2xl bg-white object-contain p-1.5 shadow-card')} />
-    : <div className={clsx(box, 'flex items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent/70 font-serif font-semibold text-night shadow-inset')}>{config?.schoolName?.[0] ?? 'S'}</div>;
+  const box = size === 'lg' ? 'h-20 w-20' : 'h-14 w-14';
+  return <img src={logoOf(config?.logoUrl)} alt="" className={clsx(box, 'rounded-full bg-white object-contain p-0.5 shadow-card ring-4 ring-accent/20')} />;
 }
 
 /**
@@ -37,13 +36,15 @@ function SchoolMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
 function AuthFrame({ children, title }: { children: React.ReactNode; title: string }) {
   const t = useT();
   const config = useAuth((s) => s.config);
-  const name = config?.schoolName ?? 'School Management';
+  const name = config?.schoolName ?? BRAND.name;
+  const [nameMain, nameSub] = splitSchoolName(name);
   return (
     <div className="grid min-h-screen bg-surface-muted lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
       <aside className="relative hidden overflow-hidden bg-night text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
+        <img src="/site-assets/alpha/hero-classroom.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.16] mix-blend-luminosity" aria-hidden />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60rem_40rem_at_110%_-10%,rgb(var(--brand)/0.55),transparent_60%),radial-gradient(40rem_30rem_at_-10%_110%,rgb(var(--accent)/0.22),transparent_60%)]" aria-hidden />
         <div className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:linear-gradient(rgb(255_255_255)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255)_1px,transparent_1px)] [background-size:56px_56px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]" aria-hidden />
-        <div className="relative flex items-center gap-4"><SchoolMark size="lg" /><p className="font-serif text-2xl font-semibold leading-tight">{name}</p></div>
+        <div className="relative flex items-center gap-5"><SchoolMark size="lg" /><div><p className="font-serif text-[1.65rem] font-semibold leading-tight">{nameMain}</p>{nameSub && <p className="eyebrow mt-1.5 !text-accent">{nameSub}</p>}</div></div>
         <div className="relative max-w-lg animate-fade-up">
           <span className="mb-7 block h-px w-12 bg-accent" aria-hidden />
           <p className="font-serif text-[2.75rem] font-medium leading-[1.08] tracking-[-0.015em] xl:text-[3.25rem]">{t('authHeadline')}</p>

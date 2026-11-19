@@ -4,7 +4,7 @@
 
 /* Brand + accent are replaced at runtime by the school's colours (services/session.ts). */
 :root {
-  --brand: 20 40 75; --brand-deep: 11 24 48; --accent: 184 146 74;
+  --brand: 28 31 94; --brand-deep: 13 16 51; --accent: 41 171 226;
   color-scheme: light;
 }
 

@@ -158,7 +158,7 @@ describe('hero playback', () => {
 describe('theme tokens', () => {
   test('invalid values fall back to safe defaults', () => {
     const v = themeCssVars({ primary: 'red; background:url(x)', radius: 'huge' as never, headingFont: 'comic' as never });
-    assert.equal(v['--site-primary'], '20 40 75');
+    assert.equal(v['--site-primary'], '28 31 94');
     assert.equal(v['--site-radius'], '0px');
     assert.match(v['--site-font-heading']!, /Georgia/);
   });
@@ -207,7 +207,7 @@ describe('content validation', () => {
   test('site configuration has complete defaults and controlled theme tokens', () => {
     const s = siteContentSchema.parse({});
     assert.deepEqual(s.languages, { enabled: ['en', 'ur'], default: 'en' });
-    assert.equal(s.theme.headingFont, 'serif-classic');
+    assert.equal(s.theme.headingFont, 'serif-modern');
     assert.equal(SITE_PARTS.theme.safeParse({ primary: 'blue' }).success, false);
     assert.equal(SITE_PARTS.theme.safeParse({ headingFont: 'Comic Sans' }).success, false);
     assert.equal(SITE_PARTS.languages.safeParse({ enabled: ['en'], default: 'ur' }).success, false);
@@ -270,4 +270,29 @@ describe('starter website', () => {
     assert.equal(pageContentSchema.parse(home.published).sections[0]!.content.slides[0].headline.en, 'X');
   });
   test('shade darkens', () => assert.equal(shade('#ffffff', 0.5), '#808080'));
+});
+
+import { ALPHA_BRAND, alphaItems, alphaPages, alphaSiteContent } from './website-alpha.js';
+import { ITEM_DATA } from '../schemas/website.js';
+
+describe('Alpha School showcase website', () => {
+  test('bundled brand photos are accepted as local media; other paths are not', () => {
+    assert.equal(isValidMediaRef({ kind: 'image', provider: 'local', url: '/site-assets/alpha/hero-campus.jpg' }), true);
+    assert.equal(isValidMediaRef({ kind: 'image', provider: 'local', url: '/site-assets/../uploads/x.jpg' }), false);
+    assert.equal(isValidMediaRef({ kind: 'image', provider: 'local', url: '/site-assets/a/b/c.jpg' }), false);
+  });
+  test('every page, item and the site configuration pass editor validation', () => {
+    const pages = alphaPages();
+    assert.equal(new Set(pages.map((p) => p.slug)).size, pages.length);
+    for (const p of pages) assert.doesNotThrow(() => pageContentSchema.parse(p.published), `page ${p.slug}`);
+    const items = alphaItems();
+    assert.equal(new Set(items.map((i) => `${i.type}/${i.slug}`)).size, items.length);
+    for (const i of items) {
+      const r = ITEM_DATA[i.type as keyof typeof ITEM_DATA].safeParse(i.data);
+      assert.ok(r.success, `${i.type}/${i.slug}: ${r.success ? '' : JSON.stringify(r.error.issues)}`);
+    }
+    const site = siteContentSchema.parse(alphaSiteContent());
+    assert.equal(site.theme.primary, ALPHA_BRAND.primaryColor);
+    assert.equal(site.theme.accent, ALPHA_BRAND.accentColor);
+  });
 });

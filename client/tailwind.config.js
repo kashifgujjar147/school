@@ -11,10 +11,10 @@ export default {
       colors: {
         brand: { DEFAULT: 'rgb(var(--brand) / <alpha-value>)', soft: 'rgb(var(--brand) / 0.08)', deep: 'rgb(var(--brand-deep) / <alpha-value>)' },
         accent: { DEFAULT: 'rgb(var(--accent) / <alpha-value>)', soft: 'rgb(var(--accent) / 0.12)' },
-        ink: { DEFAULT: '#0f1b2d', soft: '#475467', faint: '#8b94a5' },
+        ink: { DEFAULT: '#12153d', soft: '#4a5070', faint: '#8a90a8' },
         // Sidebar / dark chrome.
-        night: { DEFAULT: '#0b1626', soft: '#13223a', line: 'rgb(255 255 255 / 0.08)' },
-        surface: { DEFAULT: '#ffffff', muted: '#f6f5f1', sunken: '#efede7', line: '#e6e3dc' },
+        night: { DEFAULT: '#0d1033', soft: '#161a4a', line: 'rgb(255 255 255 / 0.08)' },
+        surface: { DEFAULT: '#ffffff', muted: '#f5f7fb', sunken: '#edf0f6', line: '#e2e6ef' },
         // Public website design tokens (set per school from Website Management → Theme & Branding).
         site: {
           primary: 'rgb(var(--site-primary) / <alpha-value>)', secondary: 'rgb(var(--site-secondary) / <alpha-value>)',

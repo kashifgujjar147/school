@@ -14,6 +14,7 @@ import { db, type OutboxItem } from '../offline/db';
 import { useLang, useT, useFormat, type TKey } from '../i18n';
 import { signOut } from '../services/session';
 import { Alert, Badge, Button, Modal } from './ui';
+import { logoOf, splitSchoolName } from '../brand';
 
 interface NavItem { to: string; label: TKey; icon: ReactNode; perm?: Permission; standard?: boolean; group?: TKey }
 
@@ -171,14 +172,14 @@ function Shell({ nav, variant }: { nav: NavItem[]; variant: 'admin' | 'teacher' 
     'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[0.8125rem] font-medium transition duration-200 ease-lux [&>svg]:h-[17px] [&>svg]:w-[17px] [&>svg]:shrink-0',
     isActive ? 'bg-white/[0.09] text-white [&>svg]:text-accent' : 'text-white/60 hover:bg-white/[0.05] hover:text-white [&>svg]:text-white/45 hover:[&>svg]:text-white/80'
   );
+  const [schoolMain, schoolSub] = splitSchoolName(config?.schoolName ?? t('appName'));
   const side = (
     <nav className="flex h-full flex-col" aria-label="Main">
       <div className="flex items-center gap-3 px-5 pb-5 pt-6">
-        {config?.logoUrl ? <img src={config.logoUrl} alt="" className="h-10 w-10 rounded-xl bg-white object-contain p-1" />
-          : <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent/70 font-serif text-xl font-semibold text-night shadow-inset">{config?.schoolName?.[0] ?? 'S'}</div>}
+        <img src={logoOf(config?.logoUrl)} alt="" className="h-12 w-12 shrink-0 rounded-full bg-white object-contain p-0.5 shadow-[0_0_0_3px_rgb(var(--accent)/0.25)]" />
         <div className="min-w-0">
-          <p className="truncate font-serif text-[1.15rem] font-semibold leading-tight text-white">{config?.schoolName ?? t('appName')}</p>
-          <p className="eyebrow mt-0.5 truncate text-white/40">{area}</p>
+          <p className="line-clamp-2 font-serif text-[1.08rem] font-semibold leading-[1.15] text-white">{schoolMain}</p>
+          <p className="eyebrow mt-1 truncate !text-accent/90">{schoolSub ? `${schoolSub} · ${area}` : area}</p>
         </div>
       </div>
       <div className="mx-5 h-px bg-night-line" aria-hidden />

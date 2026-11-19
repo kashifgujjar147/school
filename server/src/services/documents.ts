@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import PDFDocument from 'pdfkit';
@@ -24,12 +25,17 @@ function collect(doc: Doc): Promise<Buffer> {
 
 /** Absolute path of a stored upload when PDFKit can draw it; null otherwise. */
 export function drawableUpload(publicPath?: string | null): string | null {
+  // Brand images bundled with the app (/brand/<name>.png), e.g. the logo set by `npm run website:alpha`.
+  const bundled = publicPath?.match(/^\/brand\/([a-z0-9-]+\.(?:png|jpe?g))$/i);
+  if (bundled) { const abs = path.join(bundledBrandDir, bundled[1]!); return existsSync(abs) ? abs : null; }
   if (!publicPath || !publicPath.startsWith('/uploads/')) return null;
   const abs = path.resolve(uploadDir, publicPath.slice('/uploads/'.length));
   if (!abs.startsWith(uploadDir + path.sep)) return null; // never leave the upload directory
   if (!/\.(png|jpe?g)$/i.test(abs) || !existsSync(abs)) return null;
   return abs;
 }
+/** server/assets/brand — resolved from both src/ (tsx) and dist/ (compiled), which sit at the same depth. */
+const bundledBrandDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../assets/brand');
 
 function useFont(doc: Doc) {
   const fontPath = process.env.REPORT_FONT_PATH;

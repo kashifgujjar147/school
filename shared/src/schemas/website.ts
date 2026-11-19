@@ -172,10 +172,10 @@ export const SITE_PARTS = {
     social: z.object({ facebook: socialUrl, instagram: socialUrl, youtube: socialUrl, x: socialUrl, linkedin: socialUrl, whatsapp: socialUrl }).default({})
   }),
   theme: z.object({
-    preset: z.string().max(30).default('school'), primary: hex.default('#1e3a5f'), secondary: hex.default('#0f2038'), accent: hex.default('#c8963e'),
-    background: z.enum(keys(THEME_BACKGROUNDS)).default('ivory'),
-    headingFont: z.enum(keys(HEADING_FONTS)).default('serif-classic'), bodyFont: z.enum(keys(BODY_FONTS)).default('sans'),
-    radius: z.enum(keys(THEME_RADII)).default('sharp'), buttonStyle: z.enum(['solid', 'outline']).default('solid'),
+    preset: z.string().max(30).default('alpha'), primary: hex.default('#1c1f5e'), secondary: hex.default('#0d1033'), accent: hex.default('#29abe2'),
+    background: z.enum(keys(THEME_BACKGROUNDS)).default('mist'),
+    headingFont: z.enum(keys(HEADING_FONTS)).default('serif-modern'), bodyFont: z.enum(keys(BODY_FONTS)).default('sans'),
+    radius: z.enum(keys(THEME_RADII)).default('soft'), buttonStyle: z.enum(['solid', 'outline']).default('solid'),
     headerStyle: z.enum(['overlay', 'solid']).default('overlay'), footerStyle: z.enum(['dark', 'light']).default('dark')
   }),
   seo: z.object({

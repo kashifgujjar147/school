@@ -12,6 +12,7 @@
     "test": "vitest run",
     "init:school": "tsx src/scripts/init-school.ts",
     "seed:demo": "tsx src/scripts/seed-demo.ts",
+    "website:alpha": "tsx src/scripts/website-alpha.ts",
     "backup": "tsx src/scripts/backup-cli.ts",
     "migrate": "tsx src/scripts/migrate.ts",
     "sync:bootstrap": "tsx src/scripts/sync-bootstrap.ts"
