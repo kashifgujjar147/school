@@ -140,7 +140,7 @@ export const pageContentSchema = z.object({
 });
 export interface PageContent { title: Record<string, string>; sections: Section[]; seo: z.infer<typeof pageSeoSchema> }
 
-export const pageSlug = z.string().trim().toLowerCase().min(1).max(80).regex(SLUG_RE, 'Use lowercase letters, numbers and dashes')
+export const pageSlug = z.string().trim().toLowerCase().min(1).max(80).regex(SLUG_RE, 'Use small letters, numbers and dashes, e.g. about-us')
   .refine((s) => !isReservedSlug(s), 'This address is reserved');
 export const pageCreateSchema = z.object({ slug: pageSlug, title: l10n(160).refine((t) => Object.keys(t).length > 0, 'Title is required') });
 export const pageSaveSchema = z.object({ content: pageContentSchema, slug: pageSlug.optional(), version: z.number().int().optional() });
@@ -163,7 +163,7 @@ export const SITE_PARTS = {
     copyright: l10n(200), showSocial: z.boolean().default(true)
   }),
   contact: z.object({
-    address: l10n(400), phones: z.array(z.string().trim().max(30).regex(/^\+?[0-9()\- ]{5,30}$/, 'Invalid phone number')).max(4).default([]),
+    address: l10n(400), phones: z.array(z.string().trim().max(30).regex(/^\+?[0-9()\- ]{5,30}$/, 'Enter a phone number, e.g. 0300 1234567 or +92 300 1234567')).max(4).default([]),
     email: z.union([z.literal(''), z.string().trim().email().max(160)]).default(''),
     admissionsPhone: z.union([z.literal(''), z.string().trim().regex(/^\+?[0-9()\- ]{5,30}$/)]).default(''),
     admissionsEmail: z.union([z.literal(''), z.string().trim().email().max(160)]).default(''),
@@ -256,7 +256,7 @@ export const mediaListSchema = z.object({
 export const inquirySchema = z.object({
   kind: z.enum(['contact', 'admission']),
   name: z.string().trim().min(2).max(120),
-  phone: z.union([z.literal(''), z.string().trim().regex(/^\+?[0-9()\- ]{5,30}$/, 'Invalid phone number')]).default(''),
+  phone: z.union([z.literal(''), z.string().trim().regex(/^\+?[0-9()\- ]{5,30}$/, 'Enter a phone number, e.g. 0300 1234567 or +92 300 1234567')]).default(''),
   email: z.union([z.literal(''), z.string().trim().email().max(160)]).default(''),
   grade: z.string().trim().max(60).default(''),
   message: z.string().trim().max(3000).default(''),

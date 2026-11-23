@@ -95,3 +95,19 @@ describe('parent WhatsApp number on the student form', () => {
     expect((await Student.findOne({ admissionNumber: 'I-1' }).lean())).toEqual(expect.objectContaining({ parentName: 'Mrs. One', whatsappNumber: '03001234567' }));
   });
 });
+
+describe('clear validation errors from the API', () => {
+  it('names each wrong field, the problem and the right format', async () => {
+    const p = await login(w.app, 'principal');
+    const r = await p.post('/api/fees/vouchers', { studentId: w.studentIds[0], title: '', period: '2026-11', dueDate: '31-12-2026', items: [{ label: 'Tuition', amountMinor: 100 }] });
+    expect(r.status).toBe(400);
+    expect(r.body.error.code).toBe('VALIDATION');
+    expect(r.body.error.message).toBe('Please correct these 2:\n• Title: This field is required.\n• Due date: Use the date format YYYY-MM-DD, e.g. 2026-12-31');
+    expect(r.body.error.details.fields).toEqual([
+      { field: 'title', label: 'Title', message: 'This field is required.' },
+      { field: 'dueDate', label: 'Due date', message: 'Use the date format YYYY-MM-DD, e.g. 2026-12-31' }
+    ]);
+    const s = await p.post('/api/students', { admissionNumber: 'Z-1', fullName: 'Zed', classroomId: w.classroomId, whatsappNumber: '123' });
+    expect(s.body.error.message).toMatch(/^Please correct this: Parent WhatsApp number: Enter a valid WhatsApp number, e\.g\. 0300 1234567/);
+  });
+});

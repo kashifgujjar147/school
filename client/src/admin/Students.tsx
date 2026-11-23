@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Upload, Download, Search, FileSpreadsheet } from 'lucide-react';
-import { STUDENT_STATUSES, normalizePhone } from '@sms/shared';
+import { STUDENT_STATUSES, describeProblems, fieldLabel, normalizePhone } from '@sms/shared';
 import { usePaged, useAction } from '../hooks/useApi';
 import { useT, useFormat, type TKey } from '../i18n';
 import { useAuth } from '../store/auth';
@@ -55,8 +55,8 @@ export function StudentForm({ initial, onDone, onCancel }: { initial?: StudentRo
   });
   // Never fail silently: some fields have no inline error slot.
   const onInvalid = (e: Record<string, { message?: string } | undefined>) => {
-    const first = Object.entries(e).find(([, x]) => x?.message);
-    setErr(first ? `${first[0]}: ${first[1]!.message}` : t('errorGeneric'));
+    const problems = Object.entries(e).filter(([, x]) => x?.message).map(([k, x]) => ({ field: k, label: fieldLabel(k), message: x!.message! }));
+    setErr(problems.length ? describeProblems(problems) : t('errorGeneric'));
   };
   const save = async (v: FormValues, confirmDuplicate = false) => {
     setErr(null);

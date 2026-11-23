@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response, RequestHandler } from 'express';
 import { z, ZodError, type ZodTypeAny } from 'zod';
+import { describeProblems, fieldLabel, fieldProblems } from '@sms/shared';
 import { logger } from './logger.js';
 
 export class AppError extends Error {
@@ -23,8 +24,18 @@ export const h = (fn: (req: Request, res: Response, next: NextFunction) => Promi
 
 export function parse<S extends ZodTypeAny>(schema: S, value: unknown): z.infer<S> {
   const r = schema.safeParse(value);
-  if (!r.success) throw badRequest('Validation failed', r.error.flatten());
+  if (!r.success) throw validationError(r.error);
   return r.data;
+}
+
+/**
+ * A 400 that names every wrong field and what is wrong, with a format example where it helps
+ * ("Please correct this: Due date: Use the date format YYYY-MM-DD, e.g. 2026-12-31").
+ * details.fields lists them one by one for forms that highlight fields.
+ */
+export function validationError(err: ZodError): AppError {
+  const fields = fieldProblems(err);
+  return new AppError(400, 'VALIDATION', describeProblems(fields), { fields, ...err.flatten() });
 }
 
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
@@ -32,14 +43,19 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     return res.status(err.status).json({ ok: false, error: { code: err.code, message: err.message, details: err.details } });
   }
   if (err instanceof ZodError) {
-    return res.status(400).json({ ok: false, error: { code: 'BAD_REQUEST', message: 'Validation failed', details: err.flatten() } });
+    const v = validationError(err);
+    return res.status(400).json({ ok: false, error: { code: v.code, message: v.message, details: v.details } });
   }
   const e = err as { code?: number; name?: string; keyValue?: unknown; message?: string; type?: string };
   if (e?.code === 11000) {
     return res.status(409).json({ ok: false, error: { code: 'DUPLICATE', message: 'A record with these details already exists', details: e.keyValue } });
   }
   if (e?.name === 'ValidationError' || e?.name === 'CastError') {
-    return res.status(400).json({ ok: false, error: { code: 'BAD_REQUEST', message: 'Invalid data' } });
+    // Database-level check: name the fields when they are known.
+    const paths = Object.keys((err as { errors?: Record<string, unknown> }).errors ?? {});
+    const p = (err as { path?: string }).path;
+    const names = (paths.length ? paths : p ? [p] : []).map((x) => fieldLabel(x));
+    return res.status(400).json({ ok: false, error: { code: 'BAD_REQUEST', message: names.length ? `Please check: ${names.join(', ')}. The value is missing or not in the right format.` : 'Some information is not in the right format. Please check the form.' } });
   }
   if (e?.type === 'entity.too.large') return res.status(413).json({ ok: false, error: { code: 'TOO_LARGE', message: 'Request too large' } });
   // Errors raised by Express itself (e.g. a missing file under /uploads) carry their own 4xx status.

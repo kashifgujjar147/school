@@ -5,6 +5,7 @@ import { gradeFor, percentOf, summariseMarks } from './exams.js';
 import { effectivePermissions, ROLE_PERMISSIONS } from './permissions.js';
 import { smsDedupeKey, whatsappRecipient } from './sms.js';
 import { renderAttendanceWhatsapp } from './attendance-whatsapp.js';
+import { describeProblems, fieldLabel, fieldProblems } from './validation-messages.js';
 import { analyticsQuerySchema, resultsSaveSchema, voucherCreateSchema } from '../schemas/features.js';
 import { userCreateSchema } from '../schemas/index.js';
 
@@ -142,5 +143,33 @@ describe('free WhatsApp attendance messages', () => {
   });
   test('the school\'s own wording is used when set', () => {
     assert.equal(renderAttendanceWhatsapp('late', '{student} late at {time} {x}', values), 'Ali late at 08:25 {x}');
+  });
+});
+
+describe('plain-language validation messages', () => {
+  test('name the field, the problem and an example of the right format', () => {
+    const r = voucherCreateSchema.safeParse({ studentId: 'x', title: '', period: '11-2026', dueDate: '31/12/2026', items: [] });
+    assert.equal(r.success, false);
+    const p = fieldProblems(r.error!);
+    const by = Object.fromEntries(p.map((x) => [x.label, x.message]));
+    assert.equal(by['Student'], 'Choose an option from the list.');
+    assert.equal(by['Title'], 'This field is required.');
+    assert.match(by['Month']!, /YYYY-MM, e\.g\. 2026-11/);
+    assert.match(by['Due date']!, /YYYY-MM-DD, e\.g\. 2026-12-31/);
+    assert.equal(by['Fee items'], 'Add at least one.');
+    const text = describeProblems(p);
+    assert.match(text, /^Please correct these 5:\n• Student: /);
+  });
+  test('too short / too long say how many characters', () => {
+    const s = userCreateSchema.safeParse({ username: 'ab', fullName: 'x'.repeat(130), role: 'teacher', password: 'short' });
+    const by = Object.fromEntries(fieldProblems(s.error!).map((x) => [x.label, x.message]));
+    assert.match(by['Username']!, /e\.g\. ali\.khan/);
+    assert.match(by['Full name']!, /at most 120 characters \(you entered 130\)/);
+    assert.match(by['Password']!, /At least 10 characters, e\.g\./);
+  });
+  test('field labels are readable', () => {
+    assert.equal(fieldLabel('whatsappNumber'), 'Parent WhatsApp number');
+    assert.equal(fieldLabel(['items', 0, 'label']), 'Description (line 1)');
+    assert.equal(fieldLabel('someNewField'), 'Some New Field');
   });
 });

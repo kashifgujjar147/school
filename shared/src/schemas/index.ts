@@ -6,19 +6,19 @@ import { normalizePhone } from '../logic/sms.js';
 /** Request validation shared by API (authoritative) and forms (UX). */
 
 export const uuid = z.string().uuid();
-export const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
-export const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected HH:MM');
-export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+export const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use the date format YYYY-MM-DD, e.g. 2026-12-31');
+export const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use the time format HH:MM (24-hour), e.g. 08:30 or 14:15');
+export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Use a colour code, e.g. #1c1f5e');
 const trimmed = (max: number) => z.string().trim().min(1).max(max);
 const optText = (max: number) => z.string().trim().max(max).optional().nullable();
 
 export const passwordSchema = z
   .string()
-  .min(10, 'At least 10 characters')
+  .min(10, 'At least 10 characters, e.g. Alpha-School-2026')
   .max(128)
-  .regex(/[a-z]/, 'Needs a lowercase letter')
-  .regex(/[A-Z]/, 'Needs an uppercase letter')
-  .regex(/\d/, 'Needs a number');
+  .regex(/[a-z]/, 'Add at least one small letter (a-z), e.g. Alpha-School-2026')
+  .regex(/[A-Z]/, 'Add at least one capital letter (A-Z), e.g. Alpha-School-2026')
+  .regex(/\d/, 'Add at least one number (0-9), e.g. Alpha-School-2026');
 
 export const loginSchema = z.object({
   username: trimmed(80).toLowerCase(), password: z.string().min(1).max(128),
@@ -66,7 +66,7 @@ export const registerSchema = z.object({
 export const initialSetupSchema = z.object({
   setupToken: z.string().min(1).max(200),
   fullName: z.string().trim().min(2).max(120),
-  username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,40}$/, '3-40 characters: a-z, 0-9, . _ -'),
+  username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,40}$/, 'Use 3–40 small letters, numbers, dot, dash or underscore, e.g. ali.khan'),
   email: z.string().trim().toLowerCase().max(160).email().optional().nullable(),
   password: passwordSchema,
   confirmPassword: z.string().max(128)

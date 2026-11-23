@@ -1,3 +1,5 @@
+// Must load first: installs the plain-language validation messages used by every schema.
+export * from './logic/validation-messages.js';
 export * from './constants.js';
 export * from './logic/permissions.js';
 export * from './logic/sync.js';

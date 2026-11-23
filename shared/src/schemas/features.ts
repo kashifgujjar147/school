@@ -8,7 +8,7 @@ const trimmed = (max: number) => z.string().trim().min(1).max(max);
 const optText = (max: number) => z.string().trim().max(max).optional().nullable();
 /** Amounts arrive in MINOR units (integer paisa/cents). The UI converts from rupees before sending. */
 const minor = z.number().int().min(0).max(10_000_000_000);
-export const periodSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Expected YYYY-MM');
+export const periodSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use the month format YYYY-MM, e.g. 2026-11');
 
 // ---------------------------------------------------------------- Parent accounts
 export const parentAccountSchema = z.object({

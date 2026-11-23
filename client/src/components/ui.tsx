@@ -1,7 +1,7 @@
-import { forwardRef, useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { forwardRef, useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { AlertTriangle, CheckCircle2, Inbox, Info, Loader2, X, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Eye, EyeOff, Inbox, Info, Loader2, X, XCircle } from 'lucide-react';
 import { useT } from '../i18n';
 import { ApiError, NetworkError, QueuedOfflineError } from '../services/api';
 
@@ -45,10 +45,23 @@ type FieldProps = { label?: ReactNode; error?: string; hint?: ReactNode; classNa
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & FieldProps>(function Input({ label, error, hint, className, id, ...p }, ref) {
   const auto = useId(); const fid = id ?? auto;
+  const t = useT();
+  // Password fields get an eye button to show / hide what was typed.
+  const isPassword = p.type === 'password';
+  const [shown, setShown] = useState(false);
+  const field = <input id={fid} ref={ref} className={clsx('input', error && 'border-red-400', isPassword && 'pe-11')} aria-invalid={Boolean(error)} aria-describedby={error ? `${fid}-e` : undefined} {...p} type={isPassword && shown ? 'text' : p.type} />;
   return (
     <div className={className}>
       {label && <label htmlFor={fid} className="label">{label}</label>}
-      <input id={fid} ref={ref} className={clsx('input', error && 'border-red-400')} aria-invalid={Boolean(error)} aria-describedby={error ? `${fid}-e` : undefined} {...p} />
+      {isPassword ? (
+        <div className="relative">
+          {field}
+          <button type="button" onClick={() => setShown((v) => !v)} title={shown ? t('hidePassword') : t('showPassword')} aria-pressed={shown} aria-controls={fid}
+            className="absolute inset-y-0 end-0 flex w-11 items-center justify-center rounded-e-xl text-ink-faint transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
+            {shown ? <EyeOff className="h-[18px] w-[18px]" aria-hidden /> : <Eye className="h-[18px] w-[18px]" aria-hidden />}<span className="sr-only">{shown ? t('hidePassword') : t('showPassword')}</span>
+          </button>
+        </div>
+      ) : field}
       {hint && !error && <p className="mt-1.5 text-xs text-ink-faint">{hint}</p>}
       {error && <FieldError id={`${fid}-e`}>{error}</FieldError>}
     </div>
@@ -172,7 +185,7 @@ export function Alert({ kind = 'info', children, title }: { kind?: 'info' | 'suc
   return (
     <div className={clsx('relative flex animate-fade-in gap-3 overflow-hidden rounded-xl border py-3 pe-4 ps-4 text-sm leading-relaxed before:absolute before:inset-y-0 before:start-0 before:w-[3px] before:bg-[var(--bar)]', styles[kind])} role={kind === 'error' ? 'alert' : 'status'}>
       <Icon className={clsx('mt-0.5 h-4 w-4 shrink-0', icon[kind])} />
-      <div>{title && <p className="font-medium">{title}</p>}<div>{children}</div></div>
+      <div>{title && <p className="font-medium">{title}</p>}<div className="whitespace-pre-line">{children}</div></div>
     </div>
   );
 }
