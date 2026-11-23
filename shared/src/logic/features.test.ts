@@ -4,6 +4,7 @@ import { balanceMinor, checkPaymentAmount, feeStatus, fromMinor, isDueForReminde
 import { gradeFor, percentOf, summariseMarks } from './exams.js';
 import { effectivePermissions, ROLE_PERMISSIONS } from './permissions.js';
 import { smsDedupeKey, whatsappRecipient } from './sms.js';
+import { renderAttendanceWhatsapp } from './attendance-whatsapp.js';
 import { analyticsQuerySchema, resultsSaveSchema, voucherCreateSchema } from '../schemas/features.js';
 import { userCreateSchema } from '../schemas/index.js';
 
@@ -127,5 +128,19 @@ describe('free WhatsApp fee reminders', () => {
   });
   test('builds a click-to-chat link with an encoded message', () => {
     assert.equal(whatsappLink('+92 300-1234567', 'Fee due: Rs 9,000 & more'), 'https://wa.me/923001234567?text=Fee%20due%3A%20Rs%209%2C000%20%26%20more');
+  });
+});
+
+describe('free WhatsApp attendance messages', () => {
+  const values = { parent: 'Mr. Khan', student: 'Ali', class: '5-A', date: '24/11/2026', time: '08:25', school: 'Alpha 47' };
+  test('absent and late defaults are filled in', () => {
+    const absent = renderAttendanceWhatsapp('absent', null, values);
+    assert.ok(absent.includes('Ali (5-A) is absent from school today, 24/11/2026.'));
+    const late = renderAttendanceWhatsapp('late', '', values);
+    assert.ok(late.includes('at 08:25'));
+    assert.ok(!/\{(parent|student|class|date|time|school)\}/.test(absent + late));
+  });
+  test('the school\'s own wording is used when set', () => {
+    assert.equal(renderAttendanceWhatsapp('late', '{student} late at {time} {x}', values), 'Ali late at 08:25 {x}');
   });
 });

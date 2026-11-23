@@ -15,3 +15,4 @@ export * from './logic/exams.js';
 export * from './schemas/features.js';
 export * from './logic/timetable.js';
 export * from './schemas/timetable.js';
+export * from './logic/attendance-whatsapp.js';

@@ -44,7 +44,8 @@ export const homeEn = {
   homeOverdueFees: '{n} fee voucher(s) are overdue ({amount})',
   homeOpen: 'Open',
   homeAttendanceTrend: 'Attendance in the last 14 days',
-  homeNoSchoolToday: 'Today is not a school day.'
+  homeNoSchoolToday: 'Today is not a school day.',
+  homeAbsentToday: 'Today {absent} absent and {late} late. Message their parents on WhatsApp.'
 };
 
 export type HomeDict = typeof homeEn;
@@ -94,5 +95,6 @@ export const homeUr: HomeDict = {
   homeOverdueFees: '{n} فیس واؤچر کی تاریخ گزر چکی ہے ({amount})',
   homeOpen: 'کھولیں',
   homeAttendanceTrend: 'پچھلے 14 دن کی حاضری',
-  homeNoSchoolToday: 'آج اسکول کا دن نہیں ہے۔'
+  homeNoSchoolToday: 'آج اسکول کا دن نہیں ہے۔',
+  homeAbsentToday: 'آج {absent} غیر حاضر اور {late} لیٹ۔ ان کے والدین کو واٹس ایپ پر پیغام بھیجیں۔'
 };

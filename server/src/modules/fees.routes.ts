@@ -2,11 +2,12 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import {
-  balanceMinor, feeSettingsSchema, isoDate, manualPaymentSchema, normalizePhone, paymentProviderSchema, schoolDate, voucherBulkSchema, whatsappRecipient,
+  balanceMinor, feeSettingsSchema, isoDate, manualPaymentSchema, paymentProviderSchema, schoolDate, voucherBulkSchema,
   voucherCreateSchema, voucherListSchema, voucherTotal
 } from '@sms/shared';
 import { env, isTest } from '../config/env.js';
-import { AuditLog, Classroom, FeePayment, FeeVoucher, Guardian, PaymentIntent, SchoolSettings, SecretSettings, Student, StudentGuardian, User } from '../models/index.js';
+import { Classroom, FeePayment, FeeVoucher, PaymentIntent, SchoolSettings, SecretSettings, Student, User } from '../models/index.js';
+import { lastWhatsappSent, parentContacts } from '../services/parent-contacts.js';
 import { can, canAny, requireFeature } from '../middleware/auth.js';
 import { idempotent } from '../middleware/idempotency.js';
 import { encryptJson } from '../security/crypto.js';
@@ -252,25 +253,16 @@ feesRouter.get('/defaulters', can('fees.view'), h(async (req, res) => {
   let studentIds = [...new Set(vouchers.map((v) => v.studentId))];
   const sFilter: Record<string, unknown> = { _id: $in(studentIds), deletedAt: null };
   if (q.q) { const rx = new RegExp(escapeRegex(q.q), 'i'); sFilter.$or = [{ fullName: rx }, { admissionNumber: rx }]; }
-  const students = await Student.find(sFilter).select('fullName admissionNumber classroomId primaryGuardianPhone emergencyContactName emergencyContactPhone').lean();
+  const students = await Student.find(sFilter).select('fullName admissionNumber classroomId').lean();
   studentIds = students.map((s) => s._id);
-  const [rooms, links, sent] = await Promise.all([
+  const [rooms, contacts, sent] = await Promise.all([
     Classroom.find({ _id: $in([...new Set(students.map((s) => s.classroomId))]) }).select('name').lean(),
-    StudentGuardian.find({ studentId: $in(studentIds), deletedAt: null }).lean(),
-    AuditLog.aggregate<{ _id: string; at: Date }>([
-      { $match: { action: 'fee.whatsapp_reminder', entity: 'student', entityId: $in(studentIds) } },
-      { $group: { _id: '$entityId', at: { $max: '$at' } } }
-    ])
+    parentContacts(studentIds, settings.defaultCountryCode ?? '92'),
+    lastWhatsappSent('fee.whatsapp_reminder', studentIds)
   ]);
-  const guardians = await Guardian.find({ _id: $in([...new Set(links.map((l) => l.guardianId))]), deletedAt: null }).select('fullName phone').lean();
-  const cc = settings.defaultCountryCode ?? '92';
   const rows = students.map((s) => {
     const mine = vouchers.filter((v) => v.studentId === s._id);
-    // Parent to message: primary guardian, then any guardian who receives alerts, then the phone on the student record.
-    const myLinks = links.filter((l) => l.studentId === s._id).sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || Number(b.receivesAlerts) - Number(a.receivesAlerts));
-    const g = myLinks.map((l) => guardians.find((x) => x._id === l.guardianId)).find((x) => x?.phone);
-    const rawPhone = g?.phone ?? s.primaryGuardianPhone ?? s.emergencyContactPhone ?? null;
-    const e164 = rawPhone ? normalizePhone(rawPhone, cc) : null;
+    const c = contacts.get(s._id);
     return {
       studentId: s._id, fullName: s.fullName, admissionNumber: s.admissionNumber,
       classroomId: s.classroomId, classroomName: rooms.find((r) => r._id === s.classroomId)?.name ?? '',
@@ -279,9 +271,8 @@ feesRouter.get('/defaulters', can('fees.view'), h(async (req, res) => {
       oldestDueDate: mine[0]?.dueDate ?? null,
       overdue: mine.some((v) => v.dueDate < t),
       vouchers: mine.map((v) => ({ _id: v._id, voucherNumber: v.voucherNumber, title: v.title, period: v.period, dueDate: v.dueDate, balanceMinor: balanceMinor(v.totalMinor, v.paidMinor) })),
-      parentName: g?.fullName ?? (g ? '' : s.emergencyContactName ?? ''),
-      phone: rawPhone, whatsapp: e164 ? whatsappRecipient(e164) : null,
-      lastRemindedAt: sent.find((x) => x._id === s._id)?.at ?? null
+      parentName: c?.parentName ?? '', phone: c?.phone ?? null, whatsapp: c?.whatsapp ?? null,
+      lastRemindedAt: sent.get(s._id) ?? null
     };
   }).sort((a, b) => a.classroomName.localeCompare(b.classroomName) || a.fullName.localeCompare(b.fullName));
   ok(res, {

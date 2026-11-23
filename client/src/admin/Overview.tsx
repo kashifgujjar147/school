@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import {
   AlertTriangle, BarChart3, CalendarClock, CheckCircle2, ChevronRight, ClipboardCheck, FileEdit, Globe, GraduationCap,
-  IdCard, MessageSquare, NotebookPen, School, UserPlus, Users, Wallet
+  IdCard, MessageSquare, NotebookPen, School, UserPlus, UserX, Users, Wallet
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import type { Permission } from '@sms/shared';
@@ -70,6 +70,7 @@ export default function Overview() {
 
   const attention: { key: string; icon: ReactNode; text: ReactNode; to: string; tone: 'amber' | 'red' }[] = [];
   if (d.schoolDay && missing.length > 0 && can('attendance.view_all')) attention.push({ key: 'att', icon: <ClipboardCheck />, tone: 'amber', to: '/admin/attendance', text: <>{t('homeMissingAttendance', { n: missing.length })}: <strong>{missing.slice(0, 6).map((m) => m.name).join(', ')}{missing.length > 6 ? '…' : ''}</strong></> });
+  if (d.today.absent + d.today.late > 0 && can('attendance.view_all')) attention.push({ key: 'abs', icon: <UserX />, tone: 'amber', to: '/admin/attendance?tab=alerts', text: t('homeAbsentToday', { absent: d.today.absent, late: d.today.late }) });
   if (d.pendingCorrections > 0 && can('corrections.review')) attention.push({ key: 'corr', icon: <FileEdit />, tone: 'amber', to: '/admin/corrections', text: t('homeCorrectionsWaiting', { n: d.pendingCorrections }) });
   if (fs && fs.overdueCount > 0) attention.push({ key: 'fees', icon: <Wallet />, tone: 'red', to: '/admin/fees', text: t('homeOverdueFees', { n: fs.overdueCount, amount: money(fs.overdueMinor, fs.currency) }) });
 
@@ -150,11 +151,11 @@ export default function Overview() {
 
 function Big({ to, icon, tone, label, value, foot, bar }: { to: string; icon: ReactNode; tone: Tone; label: string; value: ReactNode; foot?: ReactNode; bar?: number }) {
   return (
-    <Link to={to} className="card card-interactive flex items-start gap-4 p-5">
+    <Link to={to} className="card card-interactive flex flex-col items-start gap-3 p-5">
       <span className={clsx('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl [&>svg]:h-6 [&>svg]:w-6', TONES[tone])}>{icon}</span>
-      <span className="min-w-0 flex-1">
+      <span className="w-full min-w-0">
         <span className="block text-[0.95rem] font-medium text-ink-soft">{label}</span>
-        <span className="num mt-1 block text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-ink">{value}</span>
+        <span className="num mt-1 block whitespace-nowrap text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-ink">{value}</span>
         {foot && <span className="mt-1 block text-sm leading-snug text-ink-soft">{foot}</span>}
         {bar !== undefined && <span className="mt-2.5 block h-2 overflow-hidden rounded-full bg-surface-sunken"><span className="block h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-700 ease-lux" style={{ width: `${Math.round(bar * 100)}%` }} /></span>}
       </span>

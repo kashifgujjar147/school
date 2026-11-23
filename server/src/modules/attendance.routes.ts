@@ -4,19 +4,79 @@ import {
   attendanceSubmitSchema, correctionRequestSchema, correctionReviewSchema, canSubmitForDate, countStatuses,
   schoolDate, isoDate, type AttendanceStatus
 } from '@sms/shared';
-import { AttendanceAudit, AttendanceCorrection, AttendanceRecord, AttendanceSheet, Classroom, Student, User, TeacherAssignment } from '../models/index.js';
+import { AttendanceAudit, AttendanceCorrection, AttendanceRecord, AttendanceSheet, Classroom, SchoolSettings, Student, User, TeacherAssignment } from '../models/index.js';
+import { lastWhatsappSent, parentContacts } from '../services/parent-contacts.js';
 import { can, canAny } from '../middleware/auth.js';
 import { idempotent } from '../middleware/idempotency.js';
 import { withTransaction } from '../config/db.js';
 import { assertClassroomAccess, classroomScopeFilter } from '../services/access.js';
 import { audit } from '../services/audit.js';
 import { createVersioned, updateVersioned } from '../services/repo.js';
-import { getSettings, holidayDates } from '../services/settings.js';
+import { getSettings, holidayDates, invalidateSettings } from '../services/settings.js';
 import { enqueueAttendanceAlerts } from '../services/notifications.js';
 import { AppError, badRequest, conflict, forbidden, h, notFound, ok, parse } from '../utils/http.js';
 import { $cmp, $in } from '../utils/query.js';
 
 export const attendanceRouter = Router();
+
+// ------------------------------------------------------------------ Absent / late: free WhatsApp messages to parents
+/**
+ * Students marked absent or late on a date, with the parent's WhatsApp number (click-to-chat; the
+ * message is opened in WhatsApp on the staff member's device, nothing is sent from the server).
+ */
+attendanceRouter.get('/alerts', can('attendance.view_all'), h(async (req, res) => {
+  const settings = await getSettings();
+  const q = parse(z.object({ date: isoDate.optional(), classroomId: z.string().uuid().optional(), status: z.enum(['absent', 'late']).optional() }), req.query);
+  const date = q.date ?? schoolDate(new Date(), settings.timeZone);
+  const filter: Record<string, unknown> = { date, deletedAt: null, status: q.status ?? $in(['absent', 'late']) };
+  if (q.classroomId) filter.classroomId = q.classroomId;
+  const records = await AttendanceRecord.find(filter).select('studentId classroomId status arrivalTime remark').lean();
+  const studentIds = [...new Set(records.map((r) => r.studentId))];
+  const [students, rooms, contacts, sent] = await Promise.all([
+    Student.find({ _id: $in(studentIds), deletedAt: null }).select('fullName admissionNumber').lean(),
+    Classroom.find({ _id: $in([...new Set(records.map((r) => r.classroomId))]) }).select('name').lean(),
+    parentContacts(studentIds, settings.defaultCountryCode ?? '92'),
+    lastWhatsappSent('attendance.whatsapp_alert', studentIds, date)
+  ]);
+  const rows = records.flatMap((r) => {
+    const s = students.find((x) => x._id === r.studentId);
+    if (!s) return [];
+    const c = contacts.get(s._id);
+    return [{
+      studentId: s._id, fullName: s.fullName, admissionNumber: s.admissionNumber,
+      classroomId: r.classroomId, classroomName: rooms.find((x) => x._id === r.classroomId)?.name ?? '',
+      status: r.status as 'absent' | 'late', arrivalTime: r.arrivalTime ?? null, remark: r.remark ?? null,
+      parentName: c?.parentName ?? '', phone: c?.phone ?? null, whatsapp: c?.whatsapp ?? null,
+      lastSentAt: sent.get(s._id) ?? null
+    }];
+  }).sort((a, b) => a.classroomName.localeCompare(b.classroomName) || a.status.localeCompare(b.status) || a.fullName.localeCompare(b.fullName));
+  ok(res, {
+    date, schoolName: settings.name,
+    templates: { absent: settings.attendanceMessages?.absent ?? null, late: settings.attendanceMessages?.late ?? null },
+    totals: { absent: rows.filter((r) => r.status === 'absent').length, late: rows.filter((r) => r.status === 'late').length, noPhone: rows.filter((r) => !r.whatsapp).length },
+    rows
+  });
+}));
+
+/** Records that the parent's WhatsApp chat was opened for this student and date ("Sent today"). */
+attendanceRouter.post('/alerts/:studentId/whatsapp', can('attendance.view_all'), h(async (req, res) => {
+  const studentId = z.string().uuid().parse(req.params.studentId);
+  const b = parse(z.object({ date: isoDate, status: z.enum(['absent', 'late']) }), req.body);
+  if (!(await Student.exists({ _id: studentId, deletedAt: null }))) throw notFound('Student not found');
+  await audit(req, 'attendance.whatsapp_alert', 'student', studentId, b);
+  ok(res, { at: new Date() });
+}));
+
+/** The school's own wording for the absent / late messages (null = use the default). */
+attendanceRouter.patch('/alerts/templates', can('settings.manage'), h(async (req, res) => {
+  const b = parse(z.object({ absent: z.string().trim().max(1000).nullable().optional(), late: z.string().trim().max(1000).nullable().optional() }), req.body);
+  const s = await getSettings();
+  const next = { ...(s.attendanceMessages ?? {}), ...b };
+  await updateVersioned(SchoolSettings, 'school', { attendanceMessages: next });
+  invalidateSettings();
+  await audit(req, 'attendance.message_templates_updated', 'settings', 'school');
+  ok(res, next);
+}));
 
 const REASON_TEXT: Record<string, string> = {
   future_date: 'Attendance cannot be submitted for a future date.',

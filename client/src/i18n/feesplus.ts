@@ -42,7 +42,16 @@ export const feesPlusEn = {
   filterUnpaid: 'Not paid',
   filterPartial: 'Partly paid',
   filterPaid: 'Paid',
-  filterOverdue: 'Past due date'
+  filterOverdue: 'Past due date',
+  classesTab: 'Classes',
+  alertsTab: 'Absent & late',
+  alertsHeadline: '{absent} absent · {late} late',
+  alertsEmpty: 'No absent or late students on this day.',
+  arrivedAt: 'Arrived {time}',
+  absentMessage: 'Message when absent',
+  lateMessage: 'Message when late',
+  waMessagesTitle: 'WhatsApp messages to parents',
+  waAttendanceHelp: 'These words are replaced for each parent: {parent} {student} {class} {date} {time} {school}'
 };
 
 export type FeesPlusDict = typeof feesPlusEn;
@@ -90,5 +99,14 @@ export const feesPlusUr: FeesPlusDict = {
   filterUnpaid: 'ادا نہیں',
   filterPartial: 'جزوی ادا',
   filterPaid: 'ادا شدہ',
-  filterOverdue: 'تاریخ گزر چکی'
+  filterOverdue: 'تاریخ گزر چکی',
+  classesTab: 'کلاسیں',
+  alertsTab: 'غیر حاضر اور لیٹ',
+  alertsHeadline: '{absent} غیر حاضر · {late} لیٹ',
+  alertsEmpty: 'اس دن کوئی طالب علم غیر حاضر یا لیٹ نہیں۔',
+  arrivedAt: '{time} بجے پہنچا',
+  absentMessage: 'غیر حاضری کا پیغام',
+  lateMessage: 'دیر سے آنے کا پیغام',
+  waMessagesTitle: 'والدین کو واٹس ایپ پیغامات',
+  waAttendanceHelp: 'یہ الفاظ ہر والدین کے لیے بدل جائیں گے: {parent} {student} {class} {date} {time} {school}'
 };

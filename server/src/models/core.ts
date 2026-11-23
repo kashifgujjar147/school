@@ -62,6 +62,8 @@ const schoolSettingsSchema = new Schema({
   website: { type: websiteSchema, default: () => ({}) },
   backupSchedule: { type: backupScheduleSchema, default: () => ({}) },
   fees: { type: feeSettingsSchema, default: () => ({}) },
+  /** Wording of the free WhatsApp messages to parents when a child is absent / late (empty = default). */
+  attendanceMessages: { type: new Schema({ absent: String, late: String }, { _id: false }), default: () => ({}) },
   studentCustomFields: { type: [{ key: String, label: String, _id: false }], default: [] },
   schemaVersion: { type: Number, default: 1 },
   /** Set once the first administrator has been created through the web setup (/setup). */

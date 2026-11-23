@@ -1,9 +1,11 @@
 import { Fragment, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Clock, History } from 'lucide-react';
 import { useGet } from '../hooks/useApi';
 import { useT, useFormat, type TKey } from '../i18n';
 import { useAuth } from '../store/auth';
-import { Badge, Card, EmptyState, ErrorState, Input, Modal, PageHeader, Spinner, STATUS_TONE, Table, Button } from '../components/ui';
+import { Badge, Card, EmptyState, ErrorState, Input, Modal, PageHeader, Spinner, STATUS_TONE, Table, Tabs, Button } from '../components/ui';
+import { AttendanceAlerts } from './AttendanceAlerts';
 import { CacheNotice } from '../components/Layout';
 import { todayIso } from '../teacher/common';
 
@@ -17,6 +19,9 @@ export default function AttendanceAdmin() {
   const tz = useAuth((s) => s.config?.timeZone);
   const [date, setDate] = useState(todayIso(tz));
   const q = useGet<StatusResp>(`/api/attendance/status?date=${date}`, { refetchInterval: 20_000 });
+  // ?tab=alerts (from the home page) opens the absent / late list directly.
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState<'classes' | 'alerts'>(params.get('tab') === 'alerts' ? 'alerts' : 'classes');
   const [sheet, setSheet] = useState<string | null>(null);
   const d = useGet<SheetDetail>(sheet ? `/api/attendance/sheets/${sheet}` : null);
   const [auditFor, setAuditFor] = useState<string | null>(null);
@@ -30,7 +35,8 @@ export default function AttendanceAdmin() {
       <PageHeader title={t('navAttendance')} subtitle={t('submittedOf', { done, total: rows.length })} actions={<Input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={t('date')} />} />
       <CacheNotice fromCache={q.data.fromCache} />
       {!q.data.data.schoolDay && <p className="mb-4 rounded-xl bg-surface-muted px-4 py-3 text-sm text-ink-soft">{t('notSchoolDay')}</p>}
-      <Card padded={false}>
+      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'classes', label: t('classesTab') }, { value: 'alerts', label: t('alertsTab') }]} />
+      {tab === 'alerts' ? <AttendanceAlerts date={date} /> : <Card padded={false}>
         {rows.length === 0 ? <EmptyState /> : (
           <Table>
             <thead><tr><th>{t('classroom')}</th><th>{t('teachers')}</th><th>{t('status')}</th><th>{t('present')}</th><th>{t('absent')}</th><th>{t('late')}</th><th>{t('leave')}</th><th>{t('submittedBy')}</th><th>{t('source')}</th><th /></tr></thead>
@@ -46,7 +52,7 @@ export default function AttendanceAdmin() {
             ))}</tbody>
           </Table>
         )}
-      </Card>
+      </Card>}
       <Modal open={Boolean(sheet)} onClose={() => { setSheet(null); setAuditFor(null); }} title={t('viewSheet')} wide>
         {!d.data ? <Spinner /> : (
           <Table>
