@@ -14,10 +14,13 @@ async function signIn(page: Page, username: string) {
 test('principal signs in and dashboard shows real totals', async ({ page }) => {
   await signIn(page, 'principal');
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByText('Total students')).toBeVisible();
+  await expect(page.getByText('What would you like to do today?')).toBeVisible();
   await expect(page.locator('.num', { hasText: /^4$/ }).first()).toBeVisible();
   for (const link of ['Students', 'Classrooms', 'Reports', 'System health']) {
-    await page.getByRole('link', { name: link }).first().click();
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    // Technical pages sit in the collapsed "Advanced" group of the side menu.
+    if (!(await nav.getByRole('link', { name: link }).first().isVisible())) await nav.getByText('Advanced').click();
+    await nav.getByRole('link', { name: link }).first().click();
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   }
 });

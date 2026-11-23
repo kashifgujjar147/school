@@ -226,7 +226,7 @@ export function StatCard({ label, value, hint, icon, tone: tn = 'gray' }: { labe
   return (
     <div className="card card-interactive group relative flex items-start justify-between gap-3 overflow-hidden p-4 sm:gap-4 sm:p-6">
       <div className="min-w-0">
-        <p className="eyebrow">{label}</p>
+        <p className="text-sm font-medium text-ink-soft">{label}</p>
         <p className="num mt-2.5 text-[1.6rem] font-semibold leading-none tracking-[-0.02em] text-ink sm:text-[2rem]">{value}</p>
         {hint && <p className="mt-2.5 text-xs text-ink-soft">{hint}</p>}
       </div>

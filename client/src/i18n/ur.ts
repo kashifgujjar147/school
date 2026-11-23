@@ -1,6 +1,7 @@
 import type { Dict } from './en';
 import { featuresUr } from './features';
 import { timetableUr } from './timetable';
+import { homeUr } from './home';
 
 export const ur: Dict = {
   appName: 'اسکول مینجمنٹ',
@@ -445,5 +446,6 @@ export const ur: Dict = {
   offlineSent: 'بھیج دیا گیا',
   offlineDiscardConfirm: 'یہ تبدیلی حذف کریں؟ یہ ابھی اسکول سرور تک نہیں پہنچی اور ضائع ہو جائے گی۔',
   ...featuresUr,
-  ...timetableUr
+  ...timetableUr,
+  ...homeUr
 };

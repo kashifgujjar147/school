@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -153,7 +153,10 @@ export default function Students() {
   const [q, setQ] = useState(''); const [classroomId, setClassroom] = useState(''); const [status, setStatus] = useState('active'); const [sort, setSort] = useState('fullName');
   const url = `/api/students${qs({ page, pageSize: 25, q, classroomId, status, sort })}`;
   const list = usePaged<StudentRow>(url);
-  const [adding, setAdding] = useState(false); const [importing, setImporting] = useState(false);
+  const [params, setParams] = useSearchParams();
+  // ?add=1 (from the home page "Add student" button) opens the form straight away.
+  const [adding, setAddingState] = useState(() => params.get('add') === '1');
+  const setAdding = (v: boolean) => { setAddingState(v); if (!v && params.has('add')) setParams({}, { replace: true }); }; const [importing, setImporting] = useState(false);
   const refresh = useAction(async () => undefined, ['/api/students']);
 
   return (

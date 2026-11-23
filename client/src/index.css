@@ -10,6 +10,8 @@
 
 @layer base {
   html { -webkit-text-size-adjust: 100%; text-rendering: optimizeLegibility; font-feature-settings: 'cv11', 'ss01'; }
+  /* Dashboards and portals (set by the layout): everything one step larger, for easy reading by non-technical staff. */
+  html.app-large { font-size: 17px; }
   body { @apply bg-surface-muted text-ink antialiased; }
   ::selection { background: rgb(var(--brand) / 0.16); }
   :focus-visible { outline: 2px solid rgb(var(--brand) / 0.55); outline-offset: 2px; }
@@ -42,11 +44,11 @@ html[dir='rtl'] .eyebrow { letter-spacing: 0; text-transform: none; font-size: 0
   .input[aria-invalid='true'] { @apply border-red-400 focus:border-red-500 focus:ring-red-500/10; }
   .select { appearance: none; padding-inline-end: 2.25rem; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%238b94a5' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1rem; }
   html[dir='rtl'] .select { background-position: left 0.75rem center; }
-  .label { @apply mb-1.5 block text-[0.8125rem] font-medium text-ink; }
+  .label { @apply mb-1.5 block text-sm font-medium text-ink; }
 
   /* ---- Tables ---- */
   .table-base { @apply w-full text-sm; }
-  .table-base th { @apply whitespace-nowrap border-b border-surface-line bg-surface-muted/70 px-4 py-3 text-start text-2xs font-semibold uppercase tracking-[0.08em] text-ink-soft; }
+  .table-base th { @apply whitespace-nowrap border-b border-surface-line bg-surface-muted/70 px-4 py-3 text-start text-[0.8125rem] font-semibold text-ink-soft; }
   .table-base td { @apply border-b border-surface-line/80 px-4 py-3 align-middle text-ink; }
   .table-base tbody tr { @apply transition-colors duration-150; }
   .table-base tbody tr:hover { @apply bg-brand/[0.025]; }

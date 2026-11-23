@@ -1,11 +1,18 @@
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, UserCheck, GraduationCap, School, AlertTriangle, FileEdit, MessageSquare, RefreshCw } from 'lucide-react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, Legend } from 'recharts';
+import clsx from 'clsx';
+import {
+  AlertTriangle, BarChart3, CalendarClock, CheckCircle2, ChevronRight, ClipboardCheck, FileEdit, Globe, GraduationCap,
+  IdCard, MessageSquare, NotebookPen, School, UserPlus, Users, Wallet
+} from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import type { Permission } from '@sms/shared';
 import { useGet } from '../hooks/useApi';
-import { useT, useFormat } from '../i18n';
+import { useT, useFormat, type TKey } from '../i18n';
 import { useAuth } from '../store/auth';
-import { Alert, Badge, Card, EmptyState, ErrorState, PageHeader, Spinner, StatCard, CHART, chartTooltip } from '../components/ui';
+import { Alert, Card, EmptyState, ErrorState, Spinner, CHART, chartTooltip } from '../components/ui';
 import { CacheNotice } from '../components/Layout';
+import { useMoney } from '../parent/common';
 
 interface OverviewData {
   date: string; schoolDay: boolean;
@@ -14,110 +21,143 @@ interface OverviewData {
   submissions: { submitted: number; total: number; missing: { id: string; name: string }[] };
   pendingCorrections: number;
   trend: { date: string; present: number; absent: number; late: number; leave: number; percent: number | null }[];
-  recentActivity: { _id: string; action: string; actorName?: string; at: string }[];
-  notifications: Record<string, number> | null;
-  mode: string;
-  sync: { state: string; pending: number; failed: number; conflicts: number; lastSuccessAt: string | null } | null;
 }
+interface FeeSummary { currency: string; outstandingMinor: number; overdueCount: number; overdueMinor: number; collectedThisMonthMinor: number }
 
+type Tone = 'navy' | 'sky' | 'green' | 'amber' | 'violet' | 'rose';
+const TONES: Record<Tone, string> = {
+  navy: 'bg-brand text-white',
+  sky: 'bg-sky-100 text-sky-700',
+  green: 'bg-emerald-100 text-emerald-700',
+  amber: 'bg-amber-100 text-amber-700',
+  violet: 'bg-violet-100 text-violet-700',
+  rose: 'bg-rose-100 text-rose-700'
+};
+
+interface Action { to: string; label: TKey; hint: TKey; icon: ReactNode; tone: Tone; perm?: Permission; standard?: boolean; primary?: boolean }
+/** The everyday jobs, in plain words. Shown only when the signed-in user is allowed to do them. */
+const ACTIONS: Action[] = [
+  { to: '/admin/students?add=1', label: 'actAddStudent', hint: 'actAddStudentHint', icon: <UserPlus />, tone: 'navy', perm: 'students.manage', primary: true },
+  { to: '/admin/students', label: 'actStudents', hint: 'actStudentsHint', icon: <Users />, tone: 'sky', perm: 'students.view' },
+  { to: '/admin/attendance', label: 'actAttendance', hint: 'actAttendanceHint', icon: <ClipboardCheck />, tone: 'green', perm: 'attendance.view_all' },
+  { to: '/teacher', label: 'actMarkAttendance', hint: 'actMarkAttendanceHint', icon: <CheckCircle2 />, tone: 'green', perm: 'attendance.mark' },
+  { to: '/admin/fees', label: 'actFees', hint: 'actFeesHint', icon: <Wallet />, tone: 'amber', perm: 'fees.view' },
+  { to: '/admin/exams', label: 'actResults', hint: 'actResultsHint', icon: <GraduationCap />, tone: 'violet', perm: 'exams.view' },
+  { to: '/admin/homework', label: 'actHomework', hint: 'actHomeworkHint', icon: <NotebookPen />, tone: 'rose', perm: 'homework.view' },
+  { to: '/admin/id-cards', label: 'actIdCards', hint: 'actIdCardsHint', icon: <IdCard />, tone: 'sky', perm: 'idcards.manage' },
+  { to: '/admin/sms', label: 'actSms', hint: 'actSmsHint', icon: <MessageSquare />, tone: 'green', perm: 'sms.view', standard: true },
+  { to: '/admin/timetable', label: 'actTimetable', hint: 'actTimetableHint', icon: <CalendarClock />, tone: 'violet', perm: 'timetable.view' },
+  { to: '/admin/reports', label: 'actReports', hint: 'actReportsHint', icon: <BarChart3 />, tone: 'amber', perm: 'reports.view' },
+  { to: '/admin/website', label: 'actWebsite', hint: 'actWebsiteHint', icon: <Globe />, tone: 'navy', perm: 'website.manage' }
+];
+
+/** Home for school staff: big plain-language buttons, the four numbers that matter, and what needs attention today. */
 export default function Overview() {
-  const t = useT(); const f = useFormat();
-  const config = useAuth((s) => s.config);
-  const user = useAuth((s) => s.user);
+  const t = useT(); const f = useFormat(); const money = useMoney();
+  const { config, user, can } = useAuth();
   const q = useGet<OverviewData>('/api/system/overview', { refetchInterval: 30_000 });
+  const fees = useGet<FeeSummary>(can('fees.view') ? '/api/fees/summary' : null);
   if (q.isLoading) return <Spinner />;
   if (q.isError || !q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const d = q.data.data;
-  // Short axis label in the school's date format, without the year (DD/MM, MM/DD or MM-DD).
+  const fs = fees.data?.data;
+  // At most 8 big buttons: the jobs done most often. Everything else stays in the side menu.
+  // "Mark attendance" only for people who cannot already see the whole school's attendance.
+  const actions = ACTIONS.filter((a) => (!a.perm || can(a.perm)) && (!a.standard || config?.package === 'standard') && !(a.to === '/teacher' && can('attendance.view_all'))).slice(0, 8);
   const trend = d.trend.map((x) => ({ ...x, label: f.date(x.date).replace(/^\d{4}-|\/\d{4}$/, '') }));
+  const first = user?.fullName.split(' ')[0] ?? '';
+  const missing = d.submissions.missing;
+
+  const attention: { key: string; icon: ReactNode; text: ReactNode; to: string; tone: 'amber' | 'red' }[] = [];
+  if (d.schoolDay && missing.length > 0 && can('attendance.view_all')) attention.push({ key: 'att', icon: <ClipboardCheck />, tone: 'amber', to: '/admin/attendance', text: <>{t('homeMissingAttendance', { n: missing.length })}: <strong>{missing.slice(0, 6).map((m) => m.name).join(', ')}{missing.length > 6 ? '…' : ''}</strong></> });
+  if (d.pendingCorrections > 0 && can('corrections.review')) attention.push({ key: 'corr', icon: <FileEdit />, tone: 'amber', to: '/admin/corrections', text: t('homeCorrectionsWaiting', { n: d.pendingCorrections }) });
+  if (fs && fs.overdueCount > 0) attention.push({ key: 'fees', icon: <Wallet />, tone: 'red', to: '/admin/fees', text: t('homeOverdueFees', { n: fs.overdueCount, amount: money(fs.overdueMinor, fs.currency) }) });
 
   return (
-    <div className="space-y-6">
-      <PageHeader eyebrow={user ? t('welcomeBack', { name: user.fullName.split(' ')[0] ?? user.fullName }) : undefined} title={t('navOverview')} subtitle={`${config?.schoolName ?? ''} · ${f.date(d.date)}`} />
+    <div className="space-y-8">
       <CacheNotice fromCache={q.data.fromCache} />
-      {!d.schoolDay && <Alert kind="info">{t('notSchoolDay')}</Alert>}
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <StatCard label={t('totalStudents')} value={f.num(d.totals.students)} hint={`${t('activeStudents')}: ${f.num(d.totals.activeStudents)}`} icon={<Users className="h-5 w-5" />} />
-        <StatCard label={t('teachers')} value={f.num(d.totals.teachers)} icon={<GraduationCap className="h-5 w-5" />} tone="violet" />
-        <StatCard label={t('classrooms')} value={f.num(d.totals.classrooms)} icon={<School className="h-5 w-5" />} tone="blue" />
-        <StatCard label={t('attendanceRate')} value={f.pct(d.today.percent)} hint={t('todaysAttendance')} icon={<UserCheck className="h-5 w-5" />} tone="green" />
-      </div>
+      {/* Greeting */}
+      <section>
+        <p className="text-sm font-semibold text-accent">{f.date(d.date)} · {config?.schoolName}</p>
+        <h1 className="mt-1 font-serif text-3xl font-semibold text-ink sm:text-4xl">{t('welcomeBack', { name: first })}</h1>
+        <p className="mt-2 text-lg text-ink-soft">{t('homeQuestion')}</p>
+      </section>
+      {!d.schoolDay && <Alert kind="info">{t('homeNoSchoolToday')}</Alert>}
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card title={t('todaysAttendance')} className="lg:col-span-1">
-          {d.today.total === 0 ? <EmptyState title={t('notSubmitted')} /> : (
-            <div className="grid grid-cols-2 gap-3">
-              {(['present', 'absent', 'late', 'leave'] as const).map((s) => (
-                <div key={s} className="rounded-xl border border-surface-line bg-surface-muted/60 p-4">
-                  <p className="flex items-center gap-2 text-xs font-medium text-ink-soft"><span className="h-2 w-2 rounded-full" style={{ background: s === 'present' ? CHART.present : CHART[s] }} aria-hidden />{t(s)}</p>
-                  <p className="num mt-1 text-2xl font-semibold">{f.num(d.today[s])}</p>
-                </div>
-              ))}
-            </div>
+      {/* What do you want to do? */}
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+        {actions.map((a) => (
+          <Link key={a.to + a.label} to={a.to}
+            className={clsx('group flex min-h-[8.5rem] flex-col justify-between gap-4 rounded-2xl border p-4 shadow-card transition duration-300 ease-lux hover:-translate-y-0.5 hover:shadow-raised focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 sm:p-5',
+              a.primary ? 'border-transparent bg-gradient-to-br from-brand to-brand-deep text-white' : 'border-surface-line bg-white text-ink hover:border-ink/15')}>
+            <span className={clsx('flex h-12 w-12 items-center justify-center rounded-2xl [&>svg]:h-6 [&>svg]:w-6', a.primary ? 'bg-white/15 text-white ring-1 ring-inset ring-white/20' : TONES[a.tone])}>{a.icon}</span>
+            <span>
+              <span className="flex items-center gap-1 text-[1.05rem] font-semibold leading-snug">{t(a.label)}<ChevronRight className="h-4 w-4 opacity-40 transition group-hover:translate-x-0.5 group-hover:opacity-80 rtl:rotate-180" aria-hidden /></span>
+              <span className={clsx('mt-0.5 block text-sm leading-snug', a.primary ? 'text-white/75' : 'text-ink-soft')}>{t(a.hint)}</span>
+            </span>
+          </Link>
+        ))}
+      </section>
+
+      {/* The numbers that matter */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+        <Big to="/admin/students" icon={<Users />} tone="sky" label={t('homeStudents')} value={f.num(d.totals.students)} foot={t('homeActiveStudents', { n: f.num(d.totals.activeStudents) })} />
+        <Big to="/admin/attendance" icon={<ClipboardCheck />} tone="green" label={t('homePresentToday')}
+          value={d.today.total ? f.num(d.today.present + d.today.late) : '—'}
+          foot={d.today.total ? `${t('homeOfStudents', { n: f.num(d.today.total) })} · ${f.pct(d.today.percent)}` : t('homeNotMarkedYet')} />
+        {fs ? <Big to="/admin/fees" icon={<Wallet />} tone="amber" label={t('homeFeesDue')} value={money(fs.outstandingMinor, fs.currency)} foot={t('homeCollectedMonth', { amount: money(fs.collectedThisMonthMinor, fs.currency) })} />
+          : <Big to="/admin/classrooms" icon={<School />} tone="violet" label={t('classrooms')} value={f.num(d.totals.classrooms)} foot={`${t('teachers')}: ${f.num(d.totals.teachers)}`} />}
+        <Big to="/admin/attendance" icon={<CheckCircle2 />} tone={missing.length ? 'amber' : 'green'} label={t('homeClassesMarked')}
+          value={<>{f.num(d.submissions.submitted)}<span className="text-xl text-ink-faint"> / {f.num(d.submissions.total)}</span></>}
+          bar={d.submissions.total ? d.submissions.submitted / d.submissions.total : 0} />
+      </section>
+
+      {/* Needs attention + attendance trend */}
+      <section className="grid gap-4 lg:grid-cols-5">
+        <Card title={<span className="flex items-center gap-2 text-lg"><AlertTriangle className="h-5 w-5 text-amber-500" />{t('homeAttention')}</span>} className="lg:col-span-2">
+          {attention.length === 0 ? (
+            <p className="flex items-start gap-3 rounded-xl bg-emerald-50 p-4 text-emerald-800"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />{t('homeAllGood')}</p>
+          ) : (
+            <ul className="space-y-3">{attention.map((a) => (
+              <li key={a.key} className={clsx('flex items-center gap-3 rounded-xl p-3.5', a.tone === 'red' ? 'bg-red-50 text-red-900' : 'bg-amber-50 text-amber-900')}>
+                <span className="shrink-0 [&>svg]:h-5 [&>svg]:w-5">{a.icon}</span>
+                <span className="min-w-0 flex-1 text-[0.95rem] leading-snug">{a.text}</span>
+                <Link to={a.to} className="btn-secondary shrink-0 !min-h-0 px-3 py-1.5">{t('homeOpen')}</Link>
+              </li>
+            ))}</ul>
           )}
-          <div className="mt-5">
-            <div className="mb-2 flex justify-between text-sm"><span className="font-medium">{t('submissions')}</span><span className="num text-ink-soft">{t('submittedOf', { done: d.submissions.submitted, total: d.submissions.total })}</span></div>
-            <div className="h-2 overflow-hidden rounded-full bg-surface-sunken"><div className="h-full rounded-full bg-gradient-to-r from-brand to-brand-deep transition-all duration-700 ease-lux" style={{ width: `${d.submissions.total ? (d.submissions.submitted / d.submissions.total) * 100 : 0}%` }} /></div>
-          </div>
         </Card>
-
-        <Card title={`${t('attendanceRate')} — ${t('last14Days')}`} className="lg:col-span-2">
+        <Card title={<span className="text-lg">{t('homeAttendanceTrend')}</span>} className="lg:col-span-3">
           {trend.length === 0 ? <EmptyState /> : (
-            <div className="h-64" dir="ltr">
+            <div className="h-60" dir="ltr">
               <ResponsiveContainer>
-                <AreaChart data={trend} margin={{ left: -20, right: 8, top: 8 }}>
+                <AreaChart data={trend} margin={{ left: -16, right: 8, top: 8 }}>
                   <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgb(var(--brand))" stopOpacity={0.22} /><stop offset="100%" stopColor="rgb(var(--brand))" stopOpacity={0} /></linearGradient></defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} /><YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} unit="%" />
+                  <XAxis dataKey="label" tick={{ fontSize: 13, fill: CHART.tick }} axisLine={false} tickLine={false} /><YAxis domain={[0, 100]} tick={{ fontSize: 13, fill: CHART.tick }} axisLine={false} tickLine={false} unit="%" />
                   <Tooltip {...chartTooltip} formatter={(v: number) => `${v}%`} />
-                  <Area type="monotone" dataKey="percent" name={t('attendanceRate')} stroke="rgb(var(--brand))" strokeWidth={2.25} fill="url(#g)" activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }} />
+                  <Area type="monotone" dataKey="percent" name={t('attendanceRate')} stroke="rgb(var(--brand))" strokeWidth={2.5} fill="url(#g)" activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
         </Card>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card title={<span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" />{t('missingAttendance')}</span>}>
-          {d.submissions.missing.length === 0 ? <p className="text-sm text-emerald-700">✓ {t('submittedOf', { done: d.submissions.submitted, total: d.submissions.total })}</p> : (
-            <ul className="flex flex-wrap gap-2">{d.submissions.missing.map((m) => <li key={m.id}><Badge color="amber">{m.name}</Badge></li>)}</ul>
-          )}
-        </Card>
-        <Card title={t('pendingCorrections')} actions={<Link to="/admin/corrections" className="text-sm text-brand">{t('review')} →</Link>}>
-          <div className="flex items-center gap-3"><FileEdit className="h-8 w-8 text-ink-faint" /><p className="num text-3xl font-semibold">{d.pendingCorrections}</p></div>
-        </Card>
-        {d.notifications ? (
-          <Card title={t('notificationsToday')} actions={<Link to="/admin/sms" className="text-sm text-brand">→</Link>}>
-            <div className="flex flex-wrap gap-2"><MessageSquare className="h-5 w-5 text-ink-faint" />{Object.entries(d.notifications).length === 0 ? <span className="text-sm text-ink-soft">0</span> : Object.entries(d.notifications).map(([k, v]) => <Badge key={k}>{t(k as never)}: {v}</Badge>)}</div>
-          </Card>
-        ) : d.sync ? (
-          <Card title={t('syncStatus')} actions={<Link to="/admin/sync" className="text-sm text-brand">→</Link>}>
-            <div className="flex flex-wrap items-center gap-2 text-sm"><RefreshCw className="h-5 w-5 text-ink-faint" /><Badge color={d.sync.state === 'online' ? 'green' : 'amber'}>{d.sync.state}</Badge><span>{t('pendingSync', { n: d.sync.pending })}</span>{d.sync.conflicts > 0 && <Badge color="red">{t('conflicts')}: {d.sync.conflicts}</Badge>}</div>
-          </Card>
-        ) : <Card title={t('mode')}><Badge>{d.mode}</Badge></Card>}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card title={t('last14Days')} className="lg:col-span-2">
-          {trend.length === 0 ? <EmptyState /> : (
-            <div className="h-64" dir="ltr">
-              <ResponsiveContainer>
-                <BarChart data={trend} margin={{ left: -20, right: 8, top: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 12, fill: CHART.tick }} axisLine={false} tickLine={false} allowDecimals={false} /><Tooltip {...chartTooltip} /><Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                  <Bar dataKey="absent" name={t('absent')} stackId="a" fill={CHART.absent} /><Bar dataKey="late" name={t('late')} stackId="a" fill={CHART.late} /><Bar dataKey="leave" name={t('leave')} stackId="a" fill={CHART.leave} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </Card>
-        <Card title={t('recentActivity')}>
-          {d.recentActivity.length === 0 ? <EmptyState /> : (
-            <ul className="divide-y divide-surface-line text-sm">{d.recentActivity.map((a) => <li key={a._id} className="flex justify-between gap-3 py-2.5 first:pt-0 last:pb-0"><span><span className="font-medium">{a.actorName ?? 'system'}</span> <span className="text-ink-soft">{a.action}</span></span><span className="shrink-0 text-xs text-ink-faint">{f.dateTime(a.at)}</span></li>)}</ul>
-          )}
-        </Card>
-      </div>
+      </section>
     </div>
+  );
+}
+
+function Big({ to, icon, tone, label, value, foot, bar }: { to: string; icon: ReactNode; tone: Tone; label: string; value: ReactNode; foot?: ReactNode; bar?: number }) {
+  return (
+    <Link to={to} className="card card-interactive flex items-start gap-4 p-5">
+      <span className={clsx('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl [&>svg]:h-6 [&>svg]:w-6', TONES[tone])}>{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[0.95rem] font-medium text-ink-soft">{label}</span>
+        <span className="num mt-1 block text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-ink">{value}</span>
+        {foot && <span className="mt-1 block text-sm leading-snug text-ink-soft">{foot}</span>}
+        {bar !== undefined && <span className="mt-2.5 block h-2 overflow-hidden rounded-full bg-surface-sunken"><span className="block h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-700 ease-lux" style={{ width: `${Math.round(bar * 100)}%` }} /></span>}
+      </span>
+    </Link>
   );
 }

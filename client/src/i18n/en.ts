@@ -1,5 +1,6 @@
 import { featuresEn } from './features';
 import { timetableEn } from './timetable';
+import { homeEn } from './home';
 
 export const en = {
   appName: 'School Management',
@@ -456,7 +457,8 @@ export const en = {
   offlineSent: 'Sent',
   offlineDiscardConfirm: 'Delete this change? It has not reached the school server and will be lost.',
   ...featuresEn,
-  ...timetableEn
+  ...timetableEn,
+  ...homeEn
 } as const;
 
 export type Dict = { [K in keyof typeof en]: string };

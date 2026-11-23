@@ -47,8 +47,8 @@ const h1 = (page: Page) => page.getByRole('heading', { level: 1 });
 
 test('every admin page loads, survives a refresh, and has no console errors', async ({ page }) => {
   await signIn(page, 'principal');
-  const pages: [string, RegExp, string][] = [
-    ['Overview', /\/admin$/, 'Overview'], ['Students', /\/admin\/students$/, 'Students'], ['Classrooms', /\/admin\/classrooms$/, 'Classrooms'],
+  const pages: [string, RegExp, string | RegExp][] = [
+    ['Home', /\/admin$/, /^Welcome back/], ['Students', /\/admin\/students$/, 'Students'], ['Classrooms', /\/admin\/classrooms$/, 'Classrooms'],
     ['Staff & users', /\/admin\/users$/, 'Staff & users'], ['Attendance', /\/admin\/attendance$/, 'Attendance'], ['Corrections', /\/admin\/corrections$/, 'Corrections'],
     ['Parents & guardians', /\/admin\/guardians$/, 'Parents & guardians'], ['SMS alerts', /\/admin\/sms$/, 'SMS alerts'], ['Reports', /\/admin\/reports$/, 'Reports'],
     ['Settings', /\/admin\/settings$/, 'Settings'], ['Website Management', /\/admin\/website$/, 'Website Management'], ['Security', /\/admin\/security$/, 'Security'],
@@ -56,7 +56,10 @@ test('every admin page loads, survives a refresh, and has no console errors', as
     ['Change password', /\/admin\/account$/, 'Account settings']
   ];
   for (const [link, url, heading] of pages) {
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: link, exact: true }).click();
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    // Technical pages sit in the collapsed "Advanced" group of the side menu.
+    if (!(await nav.getByRole('link', { name: link, exact: true }).isVisible())) await nav.getByText('Advanced').click();
+    await nav.getByRole('link', { name: link, exact: true }).click();
     await expect(page).toHaveURL(url);
     await expect(h1(page)).toHaveText(heading);
     await page.reload(); // deep link refresh served by the SPA fallback

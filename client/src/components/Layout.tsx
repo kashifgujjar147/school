@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import {
-  LayoutDashboard, Users, School, UserCog, ClipboardCheck, FileEdit, Contact, MessageSquare, BarChart3, Settings,
+  Users, School, UserCog, ClipboardCheck, FileEdit, Contact, MessageSquare, BarChart3, Settings,
   ShieldCheck, Activity, DatabaseBackup, RefreshCw, Globe, Menu, X, LogOut, KeyRound, Cloud, CloudOff, CheckCircle2, AlertTriangle, BookOpen, History,
   Wallet, GraduationCap, NotebookPen, LineChart, IdCard, Home, Bell, CalendarClock, CalendarDays, ChevronRight
 } from 'lucide-react';
@@ -18,29 +18,32 @@ import { logoOf, splitSchoolName } from '../brand';
 
 interface NavItem { to: string; label: TKey; icon: ReactNode; perm?: Permission; standard?: boolean; group?: TKey }
 
+// Ordered by how often school staff need them: daily work first, rarely used technical pages last
+// (the "Advanced" group starts collapsed).
 const ADMIN_NAV: NavItem[] = [
-  { to: '/admin', label: 'navOverview', icon: <LayoutDashboard />, perm: 'dashboard.view' },
-  { to: '/admin/students', label: 'navStudents', icon: <Users />, perm: 'students.view', group: 'navGroupPeople' },
-  { to: '/admin/users', label: 'navUsers', icon: <UserCog />, perm: 'users.view', group: 'navGroupPeople' },
+  { to: '/admin', label: 'navHome', icon: <Home />, perm: 'dashboard.view' },
+  { to: '/admin/students', label: 'navStudents', icon: <Users />, perm: 'students.view', group: 'navGroupDaily' },
+  { to: '/admin/attendance', label: 'navAttendance', icon: <ClipboardCheck />, perm: 'attendance.view_all', group: 'navGroupDaily' },
+  { to: '/admin/fees', label: 'navFees', icon: <Wallet />, perm: 'fees.view', group: 'navGroupDaily' },
+  { to: '/admin/exams', label: 'navExams', icon: <GraduationCap />, perm: 'exams.view', group: 'navGroupDaily' },
+  { to: '/admin/homework', label: 'navHomework', icon: <NotebookPen />, perm: 'homework.view', group: 'navGroupDaily' },
+  { to: '/admin/corrections', label: 'navCorrections', icon: <FileEdit />, perm: 'corrections.review', group: 'navGroupDaily' },
   { to: '/admin/guardians', label: 'navGuardians', icon: <Contact />, perm: 'guardians.view', standard: true, group: 'navGroupPeople' },
+  { to: '/admin/users', label: 'navUsers', icon: <UserCog />, perm: 'users.view', group: 'navGroupPeople' },
   { to: '/admin/id-cards', label: 'navIdCards', icon: <IdCard />, perm: 'idcards.manage', group: 'navGroupPeople' },
-  { to: '/admin/classrooms', label: 'navClassrooms', icon: <School />, perm: 'classrooms.view', group: 'navGroupAcademics' },
-  { to: '/admin/timetable', label: 'navTimetable', icon: <CalendarClock />, perm: 'timetable.view', group: 'navGroupAcademics' },
-  { to: '/admin/attendance', label: 'navAttendance', icon: <ClipboardCheck />, perm: 'attendance.view_all', group: 'navGroupAcademics' },
-  { to: '/admin/corrections', label: 'navCorrections', icon: <FileEdit />, perm: 'corrections.review', group: 'navGroupAcademics' },
-  { to: '/admin/exams', label: 'navExams', icon: <GraduationCap />, perm: 'exams.view', group: 'navGroupAcademics' },
-  { to: '/admin/homework', label: 'navHomework', icon: <NotebookPen />, perm: 'homework.view', group: 'navGroupAcademics' },
-  { to: '/admin/fees', label: 'navFees', icon: <Wallet />, perm: 'fees.view', group: 'navGroupFinance' },
-  { to: '/admin/reports', label: 'navReports', icon: <BarChart3 />, perm: 'reports.view', group: 'navGroupInsights' },
-  { to: '/admin/analytics', label: 'navAnalytics', icon: <LineChart />, perm: 'analytics.view', group: 'navGroupInsights' },
   { to: '/admin/sms', label: 'navSms', icon: <MessageSquare />, perm: 'sms.view', standard: true, group: 'navGroupEngagement' },
   { to: '/admin/website', label: 'navWebsite', icon: <Globe />, perm: 'website.manage', group: 'navGroupEngagement' },
-  { to: '/admin/settings', label: 'navSettings', icon: <Settings />, perm: 'settings.view', group: 'navGroupSystem' },
-  { to: '/admin/security', label: 'navSecurity', icon: <ShieldCheck />, perm: 'security.view', group: 'navGroupSystem' },
-  { to: '/admin/health', label: 'navHealth', icon: <Activity />, perm: 'system.view', group: 'navGroupSystem' },
-  { to: '/admin/backups', label: 'navBackups', icon: <DatabaseBackup />, perm: 'backups.manage', group: 'navGroupSystem' },
-  { to: '/admin/sync', label: 'navSync', icon: <RefreshCw />, perm: 'sync.view', group: 'navGroupSystem' }
+  { to: '/admin/reports', label: 'navReports', icon: <BarChart3 />, perm: 'reports.view', group: 'navGroupInsights' },
+  { to: '/admin/analytics', label: 'navAnalytics', icon: <LineChart />, perm: 'analytics.view', group: 'navGroupInsights' },
+  { to: '/admin/classrooms', label: 'navClassrooms', icon: <School />, perm: 'classrooms.view', group: 'navGroupSetup' },
+  { to: '/admin/timetable', label: 'navTimetable', icon: <CalendarClock />, perm: 'timetable.view', group: 'navGroupSetup' },
+  { to: '/admin/settings', label: 'navSettings', icon: <Settings />, perm: 'settings.view', group: 'navGroupSetup' },
+  { to: '/admin/security', label: 'navSecurity', icon: <ShieldCheck />, perm: 'security.view', group: 'navGroupAdvanced' },
+  { to: '/admin/health', label: 'navHealth', icon: <Activity />, perm: 'system.view', group: 'navGroupAdvanced' },
+  { to: '/admin/backups', label: 'navBackups', icon: <DatabaseBackup />, perm: 'backups.manage', group: 'navGroupAdvanced' },
+  { to: '/admin/sync', label: 'navSync', icon: <RefreshCw />, perm: 'sync.view', group: 'navGroupAdvanced' }
 ];
+const COLLAPSED_GROUP: TKey = 'navGroupAdvanced';
 
 const TEACHER_NAV: NavItem[] = [
   { to: '/teacher', label: 'navMyClasses', icon: <BookOpen /> },
@@ -167,6 +170,8 @@ function Shell({ nav, variant }: { nav: NavItem[]; variant: 'admin' | 'teacher' 
   // Re-animate on real page changes only (nested CMS / timetable routes keep their state).
   const pageKey = loc.pathname.split('/').slice(0, 3).join('/');
   useEffect(() => { setOpen(false); }, [loc.pathname]);
+  // Larger base text size while a dashboard/portal is shown (see index.css: html.app-large).
+  useEffect(() => { document.documentElement.classList.add('app-large'); return () => document.documentElement.classList.remove('app-large'); }, []);
 
   const groups: { label?: TKey; items: NavItem[] }[] = [];
   for (const n of items) {
@@ -175,9 +180,18 @@ function Shell({ nav, variant }: { nav: NavItem[]; variant: 'admin' | 'teacher' 
   }
 
   const linkCls = ({ isActive }: { isActive: boolean }) => clsx(
-    'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[0.8125rem] font-medium transition duration-200 ease-lux [&>svg]:h-[17px] [&>svg]:w-[17px] [&>svg]:shrink-0',
-    isActive ? 'bg-white/[0.09] text-white [&>svg]:text-accent' : 'text-white/60 hover:bg-white/[0.05] hover:text-white [&>svg]:text-white/45 hover:[&>svg]:text-white/80'
+    'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.95rem] font-medium transition duration-200 ease-lux [&>svg]:h-5 [&>svg]:w-5 [&>svg]:shrink-0',
+    isActive ? 'bg-white/[0.11] text-white [&>svg]:text-accent' : 'text-white/75 hover:bg-white/[0.06] hover:text-white [&>svg]:text-white/55 hover:[&>svg]:text-white/85'
   );
+  const navLink = (n: NavItem) => (
+    <NavLink key={n.to} to={n.to} end={n.to === home} className={linkCls}>
+      {({ isActive }) => <>
+        <span className={clsx('absolute inset-y-2 start-0 w-[3px] rounded-full bg-accent transition-opacity', isActive ? 'opacity-100' : 'opacity-0')} aria-hidden />
+        {n.icon}<span className="truncate">{t(n.label)}</span>
+      </>}
+    </NavLink>
+  );
+  const groupLabel = 'px-3 pb-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-white/40';
   const [schoolMain, schoolSub] = splitSchoolName(config?.schoolName ?? t('appName'));
   const side = (
     <nav className="flex h-full flex-col" aria-label="Main">
@@ -190,22 +204,23 @@ function Shell({ nav, variant }: { nav: NavItem[]; variant: 'admin' | 'teacher' 
       </div>
       <div className="mx-5 h-px bg-night-line" aria-hidden />
       <div className="flex-1 space-y-5 overflow-y-auto px-3 py-5 [scrollbar-width:thin]">
-        {groups.map((g, gi) => (
+        {groups.map((g, gi) => g.label === COLLAPSED_GROUP ? (
+          // Technical pages: closed by default, opened automatically when one of them is the current page.
+          <details key={g.label} className="group/adv" open={g.items.some((n) => n === current) || undefined}>
+            <summary className={clsx(groupLabel, 'flex cursor-pointer list-none items-center gap-1.5 rounded-lg py-1.5 transition hover:text-white/70 [&::-webkit-details-marker]:hidden')}>
+              <ChevronRight className="h-3.5 w-3.5 transition-transform group-open/adv:rotate-90 rtl:rotate-180 rtl:group-open/adv:rotate-90" aria-hidden />{t(g.label)}
+            </summary>
+            <div className="mt-1 space-y-0.5">{g.items.map(navLink)}</div>
+          </details>
+        ) : (
           <div key={g.label ?? `g${gi}`} className="space-y-0.5">
-            {g.label && <p className="eyebrow px-3 pb-1.5 text-white/30">{t(g.label)}</p>}
-            {g.items.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.to === home} className={linkCls}>
-                {({ isActive }) => <>
-                  <span className={clsx('absolute inset-y-1.5 start-0 w-[3px] rounded-full bg-accent transition-opacity', isActive ? 'opacity-100' : 'opacity-0')} aria-hidden />
-                  {n.icon}<span className="truncate">{t(n.label)}</span>
-                </>}
-              </NavLink>
-            ))}
+            {g.label && <p className={groupLabel}>{t(g.label)}</p>}
+            {g.items.map(navLink)}
+            {variant === 'admin' && g.label === 'navGroupDaily' && user?.permissions.includes('attendance.mark') && (
+              <NavLink to="/teacher" className={linkCls({ isActive: false })}><ClipboardCheck />{t('markAttendance')}</NavLink>
+            )}
           </div>
         ))}
-        {variant === 'admin' && user?.permissions.includes('attendance.mark') && (
-          <div className="space-y-0.5"><NavLink to="/teacher" className={linkCls({ isActive: false })}><ClipboardCheck />{t('markAttendance')}</NavLink></div>
-        )}
       </div>
       <div className="border-t border-night-line px-3 pb-3 pt-3">
         <div className="flex items-center gap-2.5 rounded-xl px-2 py-1.5">
