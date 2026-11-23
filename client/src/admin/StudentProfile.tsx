@@ -77,7 +77,7 @@ export default function StudentProfile() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title={t('fullName')}>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-            {([['dateOfBirth', f.date(s.dateOfBirth)], ['gender', s.gender ? t(s.gender as TKey) : '—'], ['admissionDate', f.date(s.admissionDate)], ['emergencyContact', s.emergencyContactName], ['emergencyPhone', s.emergencyContactPhone], ['address', s.address], ['notes', s.notes]] as [TKey, string | undefined][]).map(([k, v]) => (
+            {([['dateOfBirth', f.date(s.dateOfBirth)], ['gender', s.gender ? t(s.gender as TKey) : '—'], ['admissionDate', f.date(s.admissionDate)], ['parentNameLabel', s.parentName], ['parentWhatsapp', s.whatsappNumber], ['emergencyContact', s.emergencyContactName], ['emergencyPhone', s.emergencyContactPhone], ['address', s.address], ['notes', s.notes]] as [TKey, string | undefined][]).map(([k, v]) => (
               <div key={k} className={k === 'notes' || k === 'address' ? 'col-span-2' : ''}><dt className="text-ink-faint">{t(k)}</dt><dd className="mt-0.5 whitespace-pre-line">{v || '—'}</dd></div>
             ))}
             {customDefs.filter((d) => s.customFields?.[d.key]).map((d) => (

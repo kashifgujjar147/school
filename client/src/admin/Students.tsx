@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Upload, Download, Search, FileSpreadsheet } from 'lucide-react';
-import { STUDENT_STATUSES } from '@sms/shared';
+import { STUDENT_STATUSES, normalizePhone } from '@sms/shared';
 import { usePaged, useAction } from '../hooks/useApi';
 import { useT, useFormat, type TKey } from '../i18n';
 import { useAuth } from '../store/auth';
@@ -15,7 +15,7 @@ import { classroomOptions, useClassrooms, useCustomFields, useSessions, type Cus
 
 export interface StudentRow {
   _id: string; admissionNumber: string; fullName: string; dateOfBirth?: string; gender?: string; classroomId: string; classroomName?: string;
-  status: string; admissionDate?: string; emergencyContactName?: string; emergencyContactPhone?: string; address?: string; notes?: string; version: number; photoPath?: string;
+  status: string; admissionDate?: string; emergencyContactName?: string; emergencyContactPhone?: string; parentName?: string; whatsappNumber?: string; address?: string; notes?: string; version: number; photoPath?: string;
   customFields?: Record<string, string>;
 }
 
@@ -23,6 +23,8 @@ const formSchema = z.object({
   admissionNumber: z.string().trim().min(1).max(40), fullName: z.string().trim().min(1).max(160),
   dateOfBirth: z.string().optional(), gender: z.string().optional(), classroomId: z.string().uuid('Select a classroom'),
   admissionDate: z.string().optional(), emergencyContactName: z.string().max(120).optional(), emergencyContactPhone: z.string().max(30).optional(),
+  parentName: z.string().max(120).optional(),
+  whatsappNumber: z.string().max(30).optional().refine((v) => !v || normalizePhone(v) !== null, 'Enter a valid WhatsApp number, e.g. 0300 1234567'),
   address: z.string().max(400).optional(), notes: z.string().max(2000).optional(),
   customFields: z.record(z.string().max(500)).optional()
 });
@@ -33,6 +35,7 @@ const toFormValues = (s: StudentRow): FormValues => ({
   admissionNumber: s.admissionNumber, fullName: s.fullName, classroomId: s.classroomId,
   dateOfBirth: s.dateOfBirth ?? '', gender: s.gender ?? 'unspecified', admissionDate: s.admissionDate ?? '',
   emergencyContactName: s.emergencyContactName ?? '', emergencyContactPhone: s.emergencyContactPhone ?? '',
+  parentName: s.parentName ?? '', whatsappNumber: s.whatsappNumber ?? '',
   address: s.address ?? '', notes: s.notes ?? '',
   customFields: Object.fromEntries(Object.entries(s.customFields ?? {}).map(([k, x]) => [k, x == null ? '' : String(x)]))
 });
@@ -84,6 +87,8 @@ export function StudentForm({ initial, onDone, onCancel }: { initial?: StudentRo
         <Select label={t('gender')} {...register('gender')} options={['unspecified', 'male', 'female', 'other'].map((g) => ({ value: g, label: t(g as TKey) }))} />
         {!initial && <Select label={t('classroom')} {...register('classroomId')} placeholder="—" options={classroomOptions(rooms.data?.data)} error={errors.classroomId?.message} />}
         <Input type="date" label={t('admissionDate')} {...register('admissionDate')} />
+        <Input label={t('parentNameLabel')} {...register('parentName')} placeholder={t('parentNameHint')} />
+        <Input label={t('parentWhatsapp')} type="tel" inputMode="tel" {...register('whatsappNumber')} placeholder="0300 1234567" hint={t('parentWhatsappHint')} error={errors.whatsappNumber?.message} />
         <Input label={t('emergencyContact')} {...register('emergencyContactName')} />
         <Input label={t('emergencyPhone')} {...register('emergencyContactPhone')} />
       </div>

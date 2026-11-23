@@ -155,7 +155,7 @@ describe('students', () => {
     const t2 = await login(w.app, 'teacher2');
     expect((await t2.get('/api/students/export/file?format=csv')).text.split('\r\n')).toHaveLength(1);
     const tpl = await p.get('/api/students/import/template');
-    expect(tpl.text.replace(/^﻿/, '')).toBe('admissionNumber,fullName,dateOfBirth,gender,class,section,admissionDate,emergencyContactName,emergencyContactPhone,address');
+    expect(tpl.text.replace(/^﻿/, '')).toBe('admissionNumber,fullName,dateOfBirth,gender,class,section,admissionDate,emergencyContactName,emergencyContactPhone,parentName,whatsappNumber,address');
   });
 
   it('custom fields: defined in settings, stored on students, unknown keys refused', async () => {

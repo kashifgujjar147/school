@@ -65,3 +65,33 @@ describe('unpaid fees list and free WhatsApp reminders', () => {
     expect((await t.post(`/api/fees/defaulters/${w.studentIds[0]}/whatsapp`)).status).toBe(403);
   });
 });
+
+describe('parent WhatsApp number on the student form', () => {
+  it('is validated, saved, and used before any guardian number', async () => {
+    const p = await login(w.app, 'principal');
+    const base = { fullName: 'Bilal Ahmed', classroomId: w.classroomId };
+    expect((await p.post('/api/students', { ...base, admissionNumber: 'W-1', whatsappNumber: '12345' })).status).toBe(400);
+    const created = await p.post('/api/students', { ...base, admissionNumber: 'W-2', parentName: 'Mr. Ahmed', whatsappNumber: '0333 5556677' });
+    expect(created.status).toBe(201);
+    const id = created.body.data._id as string;
+    // A guardian with another number is linked too: the number typed on the student form wins.
+    const g = await createVersioned(Guardian, { fullName: 'Uncle', relation: 'uncle', phone: '0300 1111111' });
+    await createVersioned(StudentGuardian, { studentId: id, guardianId: g._id, isPrimary: true });
+    await p.post('/api/fees/vouchers', voucher(id, 100000));
+    const row = (await p.get('/api/fees/defaulters')).body.data.rows.find((r: { studentId: string }) => r.studentId === id);
+    expect(row).toEqual(expect.objectContaining({ parentName: 'Mr. Ahmed', whatsapp: '923335556677' }));
+    // Editing the number changes where messages go.
+    expect((await p.patch(`/api/students/${id}`, { whatsappNumber: '+92 345 0001122' })).status).toBe(200);
+    expect((await p.get('/api/fees/defaulters')).body.data.rows.find((r: { studentId: string }) => r.studentId === id).whatsapp).toBe('923450001122');
+  });
+
+  it('can be imported from Excel/CSV, including numbers that lost their leading 0', async () => {
+    const p = await login(w.app, 'principal');
+    const csv = 'admissionNumber,fullName,class,section,parentName,whatsappNumber\nI-1,Imported One,Grade 5,A,Mrs. One,3001234567\nI-2,Imported Two,Grade 5,A,,abc\n';
+    const r = await p.agent.post(`/api/students/import?dryRun=false&sessionId=${w.sessionId}`).set('x-csrf-token', p.csrf).attach('file', Buffer.from(csv), 'students.csv');
+    expect(r.status).toBe(200);
+    expect(r.body.data.imported).toBe(1);
+    expect(r.body.data.report[0].errors.join(' ')).toMatch(/whatsappNumber/);
+    expect((await Student.findOne({ admissionNumber: 'I-1' }).lean())).toEqual(expect.objectContaining({ parentName: 'Mrs. One', whatsappNumber: '03001234567' }));
+  });
+});

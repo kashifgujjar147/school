@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { APPROVABLE_ROLES, ATTENDANCE_STATUSES, MANAGEABLE_USER_STATUSES, STAFF_ROLES, STUDENT_STATUSES, LANGUAGES, NOTIFICATION_EVENTS } from '../constants.js';
 import { PERMISSIONS } from '../logic/permissions.js';
+import { normalizePhone } from '../logic/sms.js';
 
 /** Request validation shared by API (authoritative) and forms (UX). */
 
@@ -128,6 +129,10 @@ export const studentSchema = z.object({
   admissionDate: isoDate.optional().nullable(),
   emergencyContactName: optText(120),
   emergencyContactPhone: optText(30),
+  /** Parent's name and WhatsApp number: every WhatsApp message to the family (fees, absent, late) goes here. */
+  parentName: optText(120),
+  whatsappNumber: z.string().trim().max(30).optional().nullable()
+    .refine((v) => !v || normalizePhone(v) !== null, 'Enter a valid WhatsApp number, e.g. 0300 1234567 or +92 300 1234567'),
   address: optText(400),
   notes: optText(2000),
   customFields: z.record(z.string().max(60), z.string().max(500)).optional(),

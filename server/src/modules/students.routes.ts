@@ -204,9 +204,11 @@ studentsRouter.post('/:id/photo', can('students.manage'), photoUpload.single('fi
  * Two-step import. dryRun=true validates every row and returns a per-row error report without
  * writing anything. dryRun=false imports only the valid rows.
  * Columns: admissionNumber, fullName, dateOfBirth, gender, class, section, admissionDate,
- *          emergencyContactName, emergencyContactPhone, address
+ *          emergencyContactName, emergencyContactPhone, parentName, whatsappNumber, address
  */
 const importUpload = memoryUpload(5 * 1024 * 1024);
+/** Excel stores 03001234567 as a number and drops the leading 0; put it back for Pakistani mobiles. */
+const excelMobile = (v?: string) => { const d = (v ?? '').replace(/[\s-]/g, ''); return /^3\d{9}$/.test(d) ? '0' + d : (v ?? '').trim(); };
 studentsRouter.post('/import', can('students.import'), importUpload.single('file'), h(async (req, res) => {
   if (!req.file) throw badRequest('No file uploaded');
   if (!/\.(csv|xlsx)$/i.test(req.file.originalname)) throw badRequest('Upload a .csv or .xlsx file');
@@ -232,7 +234,7 @@ studentsRouter.post('/import', can('students.import'), importUpload.single('file
       admissionNumber: r.admissionNumber, fullName: r.fullName, dateOfBirth: r.dateOfBirth || null,
       gender: (r.gender || 'unspecified').toLowerCase(), classroomId: room?._id ?? '00000000-0000-4000-8000-000000000000',
       admissionDate: r.admissionDate || null, emergencyContactName: r.emergencyContactName || null,
-      emergencyContactPhone: r.emergencyContactPhone || null, address: r.address || null
+      emergencyContactPhone: r.emergencyContactPhone || null, parentName: r.parentName || null, whatsappNumber: excelMobile(r.whatsappNumber) || null, address: r.address || null
     });
     if (!parsed.success) for (const [f, msgs] of Object.entries(parsed.error.flatten().fieldErrors)) errors.push(`${f}: ${((msgs as string[] | undefined) ?? []).join(', ')}`);
     const adm = (r.admissionNumber ?? '').toLowerCase();
@@ -271,6 +273,7 @@ studentsRouter.get('/export/file', can('students.view'), h(async (req, res) => {
     { header: 'Admission No', key: 'admissionNumber' }, { header: 'Full name', key: 'fullName', width: 28 }, { header: 'Classroom', key: 'classroom' },
     { header: 'Date of birth', key: 'dateOfBirth' }, { header: 'Gender', key: 'gender' }, { header: 'Admission date', key: 'admissionDate' },
     { header: 'Status', key: 'status' }, { header: 'Emergency contact', key: 'emergencyContactName' }, { header: 'Emergency phone', key: 'emergencyContactPhone' },
+    { header: 'Parent name', key: 'parentName' }, { header: 'Parent WhatsApp', key: 'whatsappNumber' },
     { header: 'Address', key: 'address', width: 30 }
   ];
   await audit(req, 'student.exported', 'student', undefined, { count: rows.length, format });
@@ -285,7 +288,7 @@ studentsRouter.get('/export/file', can('students.view'), h(async (req, res) => {
 }));
 
 studentsRouter.get('/import/template', can('students.import'), h(async (_req, res) => {
-  const cols = ['admissionNumber', 'fullName', 'dateOfBirth', 'gender', 'class', 'section', 'admissionDate', 'emergencyContactName', 'emergencyContactPhone', 'address'].map((k) => ({ header: k, key: k }));
+  const cols = ['admissionNumber', 'fullName', 'dateOfBirth', 'gender', 'class', 'section', 'admissionDate', 'emergencyContactName', 'emergencyContactPhone', 'parentName', 'whatsappNumber', 'address'].map((k) => ({ header: k, key: k }));
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="student-import-template.csv"');
   res.send(toCsv(cols, []));

@@ -228,6 +228,8 @@ const studentSchema = new Schema({
   admissionDate: String,
   status: { type: String, enum: STUDENT_STATUSES, default: 'active' },
   emergencyContactName: String, emergencyContactPhone: String,
+  /** Parent name + WhatsApp number entered on the student form; first choice for all WhatsApp messages. */
+  parentName: String, whatsappNumber: String,
   address: String, notes: String,
   primaryGuardianPhone: String, // denormalised for duplicate detection & search
   customFields: { type: Map, of: String, default: {} },
