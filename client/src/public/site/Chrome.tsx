@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
-import { ArrowRight, ChevronDown, Facebook, Instagram, Linkedin, Menu, MessageCircle, Twitter, X, Youtube } from 'lucide-react';
+import { ArrowRight, ChevronDown, LogIn, Facebook, Instagram, Linkedin, Menu, MessageCircle, Twitter, X, Youtube } from 'lucide-react';
 import { WEBSITE_LANGUAGE_NAMES, sitePath } from '@sms/shared';
 import { SiteLink, useSite } from './context';
 import { useScrolled } from './hooks';
@@ -73,6 +73,7 @@ export function Header({ overHero, pathHref }: { overHero: boolean; pathHref: st
         <Brand light={light} />
         <div className="flex shrink-0 items-center gap-5">
           <LanguageSwitch pathHref={pathHref} className="hidden sm:flex" />
+          {nav.showStaffLogin && <Link to="/login" className={clsx('site-login hidden items-center gap-2 text-[0.74rem] font-semibold uppercase tracking-[0.16em] transition-opacity hover:opacity-100 rtl:text-sm rtl:tracking-normal sm:flex', light ? 'opacity-90' : 'text-site-primary opacity-90')}><LogIn className="h-4 w-4" aria-hidden />{s('login')}</Link>}
           {nav.cta && t(nav.cta.label) && <span className="hidden md:block"><SiteLink href={nav.cta.href} className={clsx('site-btn !min-h-[2.75rem] !px-5', light ? 'site-btn-outline is-light' : 'site-btn-primary')}>{t(nav.cta.label)}</SiteLink></span>}
           <button type="button" className="flex h-11 w-11 items-center justify-center xl:hidden" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="site-mobile-nav" aria-label={open ? s('close') : s('menu')}>{open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}</button>
         </div>
@@ -116,7 +117,10 @@ export function Header({ overHero, pathHref }: { overHero: boolean; pathHref: st
               ))}
             </ul>
             <div className="mt-8 flex flex-wrap items-center justify-between gap-5">
-              {nav.cta && t(nav.cta.label) && <SiteLink href={nav.cta.href} className="site-btn site-btn-primary">{t(nav.cta.label)}<ArrowRight aria-hidden /></SiteLink>}
+              <div className="flex flex-wrap gap-3">
+                {nav.cta && t(nav.cta.label) && <SiteLink href={nav.cta.href} className="site-btn site-btn-primary">{t(nav.cta.label)}<ArrowRight aria-hidden /></SiteLink>}
+                {nav.showStaffLogin && <Link to="/login" className="site-btn site-btn-outline"><LogIn aria-hidden />{s('login')}</Link>}
+              </div>
               <LanguageSwitch pathHref={pathHref} className="text-sm" />
             </div>
           </nav>

@@ -4,7 +4,7 @@
  * without an entry here falls back to English, so enabling another language never breaks the site.
  */
 const en = {
-  menu: 'Menu', close: 'Close', skipToContent: 'Skip to content', staffLogin: 'Staff sign in', language: 'Language',
+  menu: 'Menu', close: 'Close', skipToContent: 'Skip to content', staffLogin: 'Staff sign in', login: 'Login', language: 'Language',
   readMore: 'Read more', viewAll: 'View all', backTo: 'Back', previous: 'Previous', next: 'Next', slide: 'Slide {n} of {total}',
   heroLabel: 'Highlights', playVideo: 'Play video', openImage: 'Open image', imageOf: 'Image {n} of {total}',
   searchFaqs: 'Search questions', noResults: 'Nothing matches your search.', nothingYet: 'There is nothing to show here yet.',
@@ -23,7 +23,7 @@ const en = {
 export type SiteStrings = typeof en;
 
 const ur: Partial<SiteStrings> = {
-  menu: 'مینو', close: 'بند کریں', skipToContent: 'مواد پر جائیں', staffLogin: 'عملہ سائن ان', language: 'زبان',
+  menu: 'مینو', close: 'بند کریں', skipToContent: 'مواد پر جائیں', staffLogin: 'عملہ سائن ان', login: 'لاگ اِن', language: 'زبان',
   readMore: 'مزید پڑھیں', viewAll: 'سب دیکھیں', backTo: 'واپس', previous: 'پچھلا', next: 'اگلا', slide: 'سلائیڈ {n} از {total}',
   heroLabel: 'نمایاں', playVideo: 'ویڈیو چلائیں', openImage: 'تصویر کھولیں', imageOf: 'تصویر {n} از {total}',
   searchFaqs: 'سوالات تلاش کریں', noResults: 'آپ کی تلاش سے کوئی نتیجہ نہیں ملا۔', nothingYet: 'یہاں ابھی دکھانے کے لیے کچھ نہیں ہے۔',
