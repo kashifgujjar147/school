@@ -8,7 +8,11 @@ export const timetableEn = {
   studentPortal: 'Student portal',
   studentSignIn: 'Student sign in',
   studentLoginHint: 'Use the username and password given to you by the school office.',
-  areYouStudent: 'Student? Sign in to the student portal'
+  areYouStudent: 'Student? Sign in to the student portal',
+  navStudentHome: 'Home',
+  navMyAttendance: 'My attendance',
+  navMyResults: 'My results',
+  navMyProfile: 'My profile'
 };
 
 export type TimetableDict = typeof timetableEn;
@@ -22,5 +26,9 @@ export const timetableUr: TimetableDict = {
   studentPortal: 'طلبہ پورٹل',
   studentSignIn: 'طالب علم سائن ان',
   studentLoginHint: 'اسکول آفس کی طرف سے دیا گیا یوزر نیم اور پاس ورڈ استعمال کریں۔',
-  areYouStudent: 'طالب علم؟ طلبہ پورٹل میں سائن ان کریں'
+  areYouStudent: 'طالب علم؟ طلبہ پورٹل میں سائن ان کریں',
+  navStudentHome: 'ہوم',
+  navMyAttendance: 'میری حاضری',
+  navMyResults: 'میرے نتائج',
+  navMyProfile: 'میری پروفائل'
 };

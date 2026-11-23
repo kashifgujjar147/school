@@ -52,7 +52,13 @@ const TEACHER_NAV: NavItem[] = [
 ];
 
 const STUDENT_NAV: NavItem[] = [
-  { to: '/student', label: 'navMyTimetable', icon: <CalendarDays /> }
+  { to: '/student', label: 'navStudentHome', icon: <Home /> },
+  { to: '/student/timetable', label: 'navMyTimetable', icon: <CalendarDays /> },
+  { to: '/student/attendance', label: 'navMyAttendance', icon: <ClipboardCheck /> },
+  { to: '/student/results', label: 'navMyResults', icon: <GraduationCap /> },
+  { to: '/student/homework', label: 'navHomework', icon: <NotebookPen /> },
+  { to: '/student/fees', label: 'navFees', icon: <Wallet /> },
+  { to: '/student/profile', label: 'navMyProfile', icon: <IdCard /> }
 ];
 
 const PARENT_NAV: NavItem[] = [

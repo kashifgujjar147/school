@@ -49,7 +49,7 @@ async function childId(req: Request, raw: unknown): Promise<string> {
   return id;
 }
 
-async function placementNames(classroomIds: string[]) {
+export async function placementNames(classroomIds: string[]) {
   const rooms = await Classroom.find({ _id: $in(classroomIds) }).select('name classId sectionId sessionId').lean();
   const [classes, sections, sessions] = await Promise.all([
     SchoolClass.find({ _id: $in(rooms.map((r) => r.classId)) }).select('name').lean(),
@@ -66,9 +66,9 @@ async function placementNames(classroomIds: string[]) {
 }
 
 /** Only fields a parent needs. Internal notes, custom fields and sync metadata are never sent. */
-const PUBLIC_STUDENT = 'fullName admissionNumber dateOfBirth gender photoPath classroomId status admissionDate';
+export const PUBLIC_STUDENT = 'fullName admissionNumber dateOfBirth gender photoPath classroomId status admissionDate';
 
-async function attendanceSummary(studentId: string, from: string, to: string) {
+export async function attendanceSummary(studentId: string, from: string, to: string) {
   const s = await getSettings();
   const agg = await AttendanceRecord.aggregate<{ _id: AttendanceStatus; n: number }>([
     { $match: { studentId, deletedAt: null, date: $cmp({ gte: from, lte: to }) } },
@@ -79,7 +79,7 @@ async function attendanceSummary(studentId: string, from: string, to: string) {
   return { ...c, percent: attendancePercent(c, s.policy) };
 }
 
-async function publishedResults(studentId: string) {
+export async function publishedResults(studentId: string) {
   const results = await ExamResult.find({ studentId, deletedAt: null }).lean();
   const exams = await Exam.find({ _id: $in([...new Set(results.map((r) => r.examId))]), published: true, deletedAt: null }).sort({ startDate: -1 }).lean();
   return exams.map((e) => {
@@ -89,8 +89,8 @@ async function publishedResults(studentId: string) {
   });
 }
 
-const today = async () => schoolDate(new Date(), (await getSettings()).timeZone);
-const shift = (iso: string, days: number) => new Date(Date.parse(iso + 'T12:00:00Z') + days * 86_400_000).toISOString().slice(0, 10);
+export const today = async () => schoolDate(new Date(), (await getSettings()).timeZone);
+export const shift = (iso: string, days: number) => new Date(Date.parse(iso + 'T12:00:00Z') + days * 86_400_000).toISOString().slice(0, 10);
 
 // ------------------------------------------------------------------ Children & dashboard
 parentRouter.get('/children', h(async (req, res) => {

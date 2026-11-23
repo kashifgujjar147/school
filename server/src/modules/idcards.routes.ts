@@ -32,7 +32,7 @@ async function ensureToken(studentId: string, rotate = false): Promise<string> {
   return token;
 }
 
-async function cardInputs(studentIds: string[]): Promise<IdCardInput[]> {
+export async function cardInputs(studentIds: string[]): Promise<IdCardInput[]> {
   const students = await Student.find({ _id: $in(studentIds), deletedAt: null }).sort({ fullName: 1 }).lean();
   const rooms = await Classroom.find({ _id: $in(students.map((s) => s.classroomId)) }).lean();
   const [classes, sections, sessions] = await Promise.all([

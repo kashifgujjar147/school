@@ -50,6 +50,13 @@ const Verify = lazy(page(() => import('./pages/Verify')));
 const TimetableAdmin = lazy(page(() => import('./admin/timetable')));
 const TeacherTimetable = lazy(page(() => import('./teacher/TeacherTimetable')));
 const StudentHome = lazy(page(() => import('./student/StudentHome')));
+const studentPages = page(() => import('./student/StudentPages'));
+const StudentTimetable = lazy(() => studentPages().then((m) => ({ default: m.StudentTimetable })));
+const StudentAttendance = lazy(() => studentPages().then((m) => ({ default: m.StudentAttendance })));
+const StudentResults = lazy(() => studentPages().then((m) => ({ default: m.StudentResults })));
+const StudentHomework = lazy(() => studentPages().then((m) => ({ default: m.StudentHomework })));
+const StudentFees = lazy(() => studentPages().then((m) => ({ default: m.StudentFees })));
+const MyStudentProfile = lazy(() => studentPages().then((m) => ({ default: m.StudentProfile })));
 
 type Area = 'staff' | 'parent' | 'student';
 const areaOf = (role: string): Area => (role === 'parent' ? 'parent' : role === 'student' ? 'student' : 'staff');
@@ -153,6 +160,12 @@ export function App() {
         </Route>
         <Route path="/student" element={<RequireAuth perm="student.portal" area="student"><StudentLayout /></RequireAuth>}>
           <Route index element={<StudentHome />} />
+          <Route path="timetable" element={<StudentTimetable />} />
+          <Route path="attendance" element={<StudentAttendance />} />
+          <Route path="results" element={<StudentResults />} />
+          <Route path="homework" element={<StudentHomework />} />
+          <Route path="fees" element={<StudentFees />} />
+          <Route path="profile" element={<MyStudentProfile />} />
           <Route path="account" element={<ChangePasswordPage />} />
         </Route>
         <Route path="*" element={<EmptyState title="404">Page not found.</EmptyState>} />

@@ -20,14 +20,15 @@ function TimetableTab({ id }: { id: string }) {
 type Tab = 'profile' | 'timetable' | 'attendance' | 'results' | 'homework' | 'fees' | 'feedback';
 const TABS: Tab[] = ['profile', 'timetable', 'attendance', 'results', 'homework', 'fees', 'feedback'];
 
-interface Profile extends ChildSummary { dateOfBirth?: string; gender?: string; admissionDate?: string; teachers: { fullName: string; isHomeroom: boolean }[] }
+export interface Profile extends ChildSummary { dateOfBirth?: string; gender?: string; admissionDate?: string; teachers: { fullName: string; isHomeroom: boolean }[] }
 
 export default function ChildDetail() {
   const t = useT();
   const { id = '' } = useParams();
   const [params, setParams] = useSearchParams();
   const tab = (TABS.includes(params.get('tab') as Tab) ? params.get('tab') : 'profile') as Tab;
-  const q = useGet<Profile>(`/api/parent/children/${id}`);
+  const base = `/api/parent/children/${id}`;
+  const q = useGet<Profile>(base);
   if (q.isLoading) return <Spinner />;
   if (q.isError || !q.data) return <ErrorState error={q.error} />;
   const s = q.data.data;
@@ -42,16 +43,16 @@ export default function ChildDetail() {
       <Tabs value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} tabs={TABS.map((x) => ({ value: x, label: t(labels[x]) }))} />
       {tab === 'profile' && <ProfileTab s={s} />}
       {tab === 'timetable' && <TimetableTab id={id} />}
-      {tab === 'attendance' && <AttendanceTab id={id} />}
-      {tab === 'results' && <ResultsTab id={id} name={s.fullName} />}
-      {tab === 'homework' && <HomeworkTab id={id} />}
-      {tab === 'fees' && <FeesTab id={id} />}
+      {tab === 'attendance' && <AttendanceTab base={base} />}
+      {tab === 'results' && <ResultsTab base={base} name={s.fullName} />}
+      {tab === 'homework' && <HomeworkTab base={base} />}
+      {tab === 'fees' && <FeesTab base={base} docs="/api/parent" canPay />}
       {tab === 'feedback' && <FeedbackTab id={id} />}
     </div>
   );
 }
 
-function ProfileTab({ s }: { s: Profile }) {
+export function ProfileTab({ s }: { s: Profile }) {
   const t = useT(); const f = useFormat();
   const rows: [string, string][] = [
     [t('admissionNumber'), s.admissionNumber], [t('classroom'), s.classroomName], [t('academicSession'), s.sessionName],
@@ -67,10 +68,11 @@ function ProfileTab({ s }: { s: Profile }) {
   );
 }
 
-function AttendanceTab({ id }: { id: string }) {
+/** Shared by the parent portal (one child) and the student portal (own record): `base` is the record's API path. */
+export function AttendanceTab({ base }: { base: string }) {
   const t = useT(); const f = useFormat();
   const [range, setRange] = useState<{ from?: string; to?: string }>({});
-  const q = useGet<{ from: string; to: string; summary: { present: number; absent: number; late: number; leave: number; total: number; percent: number | null }; records: { _id: string; date: string; status: string; remark?: string; arrivalTime?: string; corrected: boolean }[] }>(`/api/parent/children/${id}/attendance${qs(range)}`);
+  const q = useGet<{ from: string; to: string; summary: { present: number; absent: number; late: number; leave: number; total: number; percent: number | null }; records: { _id: string; date: string; status: string; remark?: string; arrivalTime?: string; corrected: boolean }[] }>(`${base}/attendance${qs(range)}`);
   if (q.isLoading) return <Spinner />;
   if (q.isError || !q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const d = q.data.data;
@@ -98,9 +100,9 @@ function AttendanceTab({ id }: { id: string }) {
   );
 }
 
-function ResultsTab({ id, name }: { id: string; name: string }) {
+export function ResultsTab({ base, name }: { base: string; name: string }) {
   const t = useT(); const f = useFormat();
-  const q = useGet<ResultExam[]>(`/api/parent/children/${id}/results`);
+  const q = useGet<ResultExam[]>(`${base}/results`);
   const [err, setErr] = useState<string | null>(null);
   if (q.isLoading) return <Spinner />;
   if (q.isError || !q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
@@ -110,7 +112,7 @@ function ResultsTab({ id, name }: { id: string; name: string }) {
       {err && <Alert kind="error">{err}</Alert>}
       {q.data.data.map((e) => (
         <Card key={e.examId} padded={false} title={<span>{e.name}{e.term && <span className="ms-2 text-sm font-normal text-ink-soft">{e.term}</span>}</span>}
-          actions={<Button variant="secondary" onClick={() => downloadFile(`/api/parent/children/${id}/report-card/${e.examId}`, `report-card-${name}.pdf`).catch((x) => setErr(errorMessage(x, t('errorGeneric'))))}><Download className="h-4 w-4" />{t('reportCard')}</Button>}>
+          actions={<Button variant="secondary" onClick={() => downloadFile(`${base}/report-card/${e.examId}`, `report-card-${name}.pdf`).catch((x) => setErr(errorMessage(x, t('errorGeneric'))))}><Download className="h-4 w-4" />{t('reportCard')}</Button>}>
           <Table>
             <thead><tr><th>{t('subject')}</th><th className="text-end">{t('marks')}</th><th className="text-end">{t('maxMarks')}</th><th>{t('remarks')}</th></tr></thead>
             <tbody>{e.rows.map((r) => <tr key={r.subject}><td className="font-medium">{r.subject}</td><td className="num text-end">{r.absent ? <Badge color="red">{t('absentShort')}</Badge> : r.marksObtained}</td><td className="num text-end">{r.maxMarks}</td><td className="text-sm text-ink-soft">{r.remarks ?? ''}</td></tr>)}</tbody>
@@ -127,10 +129,10 @@ function ResultsTab({ id, name }: { id: string; name: string }) {
   );
 }
 
-function HomeworkTab({ id }: { id: string }) {
+export function HomeworkTab({ base }: { base: string }) {
   const t = useT(); const f = useFormat();
   const [scope, setScope] = useState<'upcoming' | 'past'>('upcoming');
-  const q = useGet<{ _id: string; subject: string; title: string; description?: string; assignedDate: string; dueDate: string }[]>(`/api/parent/children/${id}/homework?scope=${scope}`);
+  const q = useGet<{ _id: string; subject: string; title: string; description?: string; assignedDate: string; dueDate: string }[]>(`${base}/homework?scope=${scope}`);
   return (
     <Card actions={<div className="flex gap-1">{(['upcoming', 'past'] as const).map((s) => <Button key={s} variant={scope === s ? 'primary' : 'secondary'} onClick={() => setScope(s)}>{t(s)}</Button>)}</div>}>
       {q.isLoading ? <Spinner /> : q.isError ? <ErrorState error={q.error} /> : !q.data?.data.length ? <EmptyState>{t('noHomework')}</EmptyState> : (
@@ -157,10 +159,11 @@ function FeedbackTab({ id }: { id: string }) {
   );
 }
 
-function FeesTab({ id }: { id: string }) {
+/** `docs`: API prefix for voucher/receipt PDFs. Online payment only where `canPay` (parent portal). */
+export function FeesTab({ base, docs, canPay: payAllowed = false }: { base: string; docs: string; canPay?: boolean }) {
   const t = useT(); const f = useFormat(); const money = useMoney();
-  const q = useGet<{ vouchers: Voucher[]; payments: Payment[]; outstandingMinor: number }>(`/api/parent/children/${id}/fees`);
-  const avail = useGet<{ available: boolean; currency: string }>('/api/parent/payments/availability');
+  const q = useGet<{ vouchers: Voucher[]; payments: Payment[]; outstandingMinor: number }>(`${base}/fees`);
+  const avail = useGet<{ available: boolean; currency: string }>(payAllowed ? '/api/parent/payments/availability' : null);
   const [paying, setPaying] = useState<Voucher | null>(null);
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
@@ -168,7 +171,7 @@ function FeesTab({ id }: { id: string }) {
   if (q.isLoading) return <Spinner />;
   if (q.isError || !q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const d = q.data.data;
-  const canPay = avail.data?.data.available;
+  const canPay = payAllowed && avail.data?.data.available;
   const dl = (url: string, name: string) => downloadFile(url, name).catch((x) => setErr(errorMessage(x, t('errorGeneric'))));
   const startPay = async () => {
     if (!paying) return;
@@ -186,7 +189,7 @@ function FeesTab({ id }: { id: string }) {
       {err && <Alert kind="error">{err}</Alert>}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="card p-5"><p className="text-sm text-ink-soft">{t('outstandingFees')}</p><p className="num mt-1 text-2xl font-semibold">{money(d.outstandingMinor, d.vouchers[0]?.currency)}</p></div>
-        {avail.data && !canPay && open.length > 0 && <Alert kind="info">{t('onlinePaymentUnavailable')}</Alert>}
+        {payAllowed && avail.data && !canPay && open.length > 0 && <Alert kind="info">{t('onlinePaymentUnavailable')}</Alert>}
       </div>
       <Card padded={false} title={t('vouchers')}>
         {d.vouchers.length === 0 ? <EmptyState /> : (
@@ -199,7 +202,7 @@ function FeesTab({ id }: { id: string }) {
                 <td className="num text-end">{money(v.totalMinor, v.currency)}</td><td className="num text-end font-medium">{money(v.balanceMinor, v.currency)}</td>
                 <td><Badge color={STATUS_TONE[v.status]}>{t(v.status as TKey)}</Badge></td>
                 <td className="whitespace-nowrap text-end">
-                  <Button variant="ghost" onClick={() => dl(`/api/parent/vouchers/${v._id}/pdf`, `voucher-${v.voucherNumber}.pdf`)} aria-label={`${t('download')} ${v.voucherNumber}`}><Download className="h-4 w-4" /></Button>
+                  <Button variant="ghost" onClick={() => dl(`${docs}/vouchers/${v._id}/pdf`, `voucher-${v.voucherNumber}.pdf`)} aria-label={`${t('download')} ${v.voucherNumber}`}><Download className="h-4 w-4" /></Button>
                   {canPay && (v.status === 'unpaid' || v.status === 'partial') && <Button onClick={() => { setErr(null); setAmount(String(fromMinor(v.balanceMinor))); setPaying(v); }}><CreditCard className="h-4 w-4" />{t('payOnline')}</Button>}
                 </td>
               </tr>
@@ -213,7 +216,7 @@ function FeesTab({ id }: { id: string }) {
             <thead><tr><th>{t('date')}</th><th>{t('receiptNo')}</th><th>{t('paymentMethod')}</th><th className="text-end">{t('amount')}</th><th /></tr></thead>
             <tbody>{d.payments.map((p) => (
               <tr key={p._id}><td className="num">{f.date(p.paidAt)}</td><td className="num text-xs">{p.receiptNumber}</td><td>{t(p.method as TKey)}</td><td className="num text-end">{money(p.amountMinor, p.currency)}</td>
-                <td className="text-end"><Button variant="ghost" onClick={() => dl(`/api/parent/receipts/${p._id}/pdf`, `receipt-${p.receiptNumber}.pdf`)}><Download className="h-4 w-4" />{t('receipt')}</Button></td></tr>
+                <td className="text-end"><Button variant="ghost" onClick={() => dl(`${docs}/receipts/${p._id}/pdf`, `receipt-${p.receiptNumber}.pdf`)}><Download className="h-4 w-4" />{t('receipt')}</Button></td></tr>
             ))}</tbody>
           </Table>
         )}
