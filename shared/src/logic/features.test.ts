@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { balanceMinor, checkPaymentAmount, feeStatus, fromMinor, isDueForReminder, toMinor, voucherTotal } from './fees.js';
+import { balanceMinor, checkPaymentAmount, feeStatus, fromMinor, isDueForReminder, renderFeeWhatsapp, toMinor, voucherTotal, whatsappLink } from './fees.js';
 import { gradeFor, percentOf, summariseMarks } from './exams.js';
 import { effectivePermissions, ROLE_PERMISSIONS } from './permissions.js';
 import { smsDedupeKey, whatsappRecipient } from './sms.js';
@@ -110,5 +110,22 @@ describe('analytics query', () => {
     assert.equal(analyticsQuerySchema.safeParse({ from: '2026-01-01', to: '2026-12-31' }).success, true);
     assert.equal(analyticsQuerySchema.safeParse({ from: '2026-12-31', to: '2026-01-01' }).success, false);
     assert.equal(analyticsQuerySchema.safeParse({ from: '2020-01-01', to: '2026-01-01' }).success, false);
+  });
+});
+
+describe('free WhatsApp fee reminders', () => {
+  const values = { parent: 'Mr. Khan', student: 'Ayesha Khan', class: '7-Blue', amount: 'Rs 9,000', due: '30/11/2026', months: '2026-11', school: 'Alpha 47' };
+  test('fills every placeholder and keeps unknown ones', () => {
+    const out = renderFeeWhatsapp('Dear {parent}, {student} of {class} owes {amount} for {months} (due {due}) — {school} {other}', values);
+    assert.equal(out, 'Dear Mr. Khan, Ayesha Khan of 7-Blue owes Rs 9,000 for 2026-11 (due 30/11/2026) — Alpha 47 {other}');
+  });
+  test('falls back to the default template when none is set', () => {
+    const out = renderFeeWhatsapp('  ', values);
+    assert.ok(out.includes('Ayesha Khan (7-Blue)'));
+    assert.ok(out.includes('Rs 9,000'));
+    assert.ok(!/\{(parent|student|class|amount|due|months|school)\}/.test(out));
+  });
+  test('builds a click-to-chat link with an encoded message', () => {
+    assert.equal(whatsappLink('+92 300-1234567', 'Fee due: Rs 9,000 & more'), 'https://wa.me/923001234567?text=Fee%20due%3A%20Rs%209%2C000%20%26%20more');
   });
 });

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Download, Plus, Trash2, Users as UsersIcon, Wallet, AlertTriangle, BellRing } from 'lucide-react';
+import clsx from 'clsx';
+import { Download, Plus, Trash2, User as UserIcon, Users as UsersIcon, Wallet, AlertTriangle, BellRing } from 'lucide-react';
+import { UnpaidFees } from './FeesUnpaid';
 import { fromMinor, toMinor } from '@sms/shared';
 import { useAction, useGet, usePaged } from '../hooks/useApi';
 import { useFormat, useT, type TKey } from '../i18n';
@@ -21,18 +23,27 @@ function useMsg() {
   return { msg, ok: (text: string) => setMsg({ kind: 'success', text }), fail: (e: unknown, fb: string) => setMsg({ kind: 'error', text: errorMessage(e, fb) }), clear: () => setMsg(null) };
 }
 
-/** Fee lines are typed in rupees and sent in minor units. */
-function VoucherForm({ mode, onDone, onCancel }: { mode: 'single' | 'bulk'; onDone: (text: string) => void; onCancel: () => void }) {
+/**
+ * One form for both cases: a voucher for the whole class at once, or for one student (found by
+ * name). Fee lines are typed in rupees and sent in minor units.
+ */
+function VoucherForm({ onDone, onCancel }: { onDone: (text: string) => void; onCancel: () => void }) {
   const t = useT();
   const rooms = useClassrooms();
+  const [mode, setMode] = useState<'single' | 'bulk'>('bulk');
   const [v, setV] = useState({ classroomId: '', studentId: '', title: '', period: thisPeriod(), dueDate: '', allowPartial: false, lateFee: '', discount: '', notes: '' });
   const [items, setItems] = useState([{ label: '', amount: '' }]);
-  const [students, setStudents] = useState<{ _id: string; fullName: string; admissionNumber: string }[]>([]);
+  const [search, setSearch] = useState('');
+  const [students, setStudents] = useState<{ _id: string; fullName: string; admissionNumber: string; classroomName?: string }[]>([]);
   const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (mode !== 'single' || !v.classroomId) { setStudents([]); return; }
-    void getPaged<{ _id: string; fullName: string; admissionNumber: string }>(`/api/students${qs({ classroomId: v.classroomId, pageSize: 200 })}`).then((r) => setStudents(r.items)).catch(() => setStudents([]));
-  }, [mode, v.classroomId]);
+    if (mode !== 'single' || (!search.trim() && !v.classroomId)) { setStudents([]); return; }
+    const timer = setTimeout(() => {
+      void getPaged<{ _id: string; fullName: string; admissionNumber: string; classroomName?: string }>(`/api/students${qs({ q: search.trim() || undefined, classroomId: v.classroomId || undefined, pageSize: 50 })}`)
+        .then((r) => setStudents(r.items)).catch(() => setStudents([]));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [mode, search, v.classroomId]);
   const total = items.reduce((a, i) => a + (Number(i.amount) || 0), 0) + (Number(v.lateFee) || 0) - (Number(v.discount) || 0);
   const valid = v.title && v.dueDate && /^\d{4}-\d{2}$/.test(v.period) && items.every((i) => i.label && Number(i.amount) >= 0 && i.amount !== '') && (mode === 'bulk' ? v.classroomId : v.studentId);
   const save = async () => {
@@ -55,9 +66,38 @@ function VoucherForm({ mode, onDone, onCancel }: { mode: 'single' | 'bulk'; onDo
   return (
     <div className="space-y-4">
       {err && <Alert kind="error">{err}</Alert>}
+      <fieldset>
+        <legend className="label">{t('voucherFor')}</legend>
+        <div className="grid gap-3 sm:grid-cols-2" role="radiogroup">
+          {([['bulk', UsersIcon, 'wholeClass', 'wholeClassHint'], ['single', UserIcon, 'oneStudent', 'oneStudentHint']] as const).map(([m, Icon, label, hint]) => (
+            <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => { setMode(m); setV({ ...v, studentId: '' }); }}
+              className={clsx('flex items-center gap-3 rounded-2xl border-2 p-4 text-start transition', mode === m ? 'border-brand bg-brand-soft' : 'border-surface-line bg-white hover:border-ink/20')}>
+              <span className={clsx('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', mode === m ? 'bg-brand text-white' : 'bg-surface-muted text-ink-soft')}><Icon className="h-5 w-5" /></span>
+              <span><span className="block font-semibold">{t(label)}</span><span className="block text-sm text-ink-soft">{t(hint)}</span></span>
+            </button>
+          ))}
+        </div>
+      </fieldset>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Select label={t('classroom')} value={v.classroomId} onChange={(e) => setV({ ...v, classroomId: e.target.value, studentId: '' })} placeholder="—" options={classroomOptions(rooms.data?.data)} />
-        {mode === 'single' && <Select label={t('students')} value={v.studentId} onChange={(e) => setV({ ...v, studentId: e.target.value })} placeholder="—" disabled={!students.length} options={students.map((s) => ({ value: s._id, label: `${s.fullName} (${s.admissionNumber})` }))} />}
+        {mode === 'bulk' ? (
+          <Select className="sm:col-span-2" label={t('classroom')} value={v.classroomId} onChange={(e) => setV({ ...v, classroomId: e.target.value, studentId: '' })} placeholder="—" options={classroomOptions(rooms.data?.data)} />
+        ) : <>
+          <Input className="sm:col-span-2" label={t('oneStudent')} type="search" placeholder={t('searchStudentName')} value={search} onChange={(e) => { setSearch(e.target.value); setV({ ...v, studentId: '' }); }} />
+          {students.length > 0 && (
+            <div className="sm:col-span-2" role="listbox" aria-label={t('chooseStudent')}>
+              <p className="label">{t('chooseStudent')}</p>
+              <div className="max-h-56 space-y-1.5 overflow-y-auto">
+                {students.map((s) => (
+                  <button key={s._id} type="button" role="option" aria-selected={v.studentId === s._id} onClick={() => setV({ ...v, studentId: s._id })}
+                    className={clsx('flex w-full items-center justify-between gap-3 rounded-xl border-2 px-4 py-2.5 text-start transition', v.studentId === s._id ? 'border-brand bg-brand-soft' : 'border-surface-line hover:border-ink/20')}>
+                    <span className="font-medium">{s.fullName}</span>
+                    <span className="num text-sm text-ink-soft">{[s.admissionNumber, s.classroomName].filter(Boolean).join(' · ')}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>}
         <Input label={t('feeTitle')} value={v.title} onChange={(e) => setV({ ...v, title: e.target.value })} maxLength={120} />
         <Input label={t('feePeriod')} type="month" value={v.period} onChange={(e) => setV({ ...v, period: e.target.value })} />
         <Input label={t('dueDate')} type="date" value={v.dueDate} onChange={(e) => setV({ ...v, dueDate: e.target.value })} />
@@ -80,7 +120,7 @@ function VoucherForm({ mode, onDone, onCancel }: { mode: 'single' | 'bulk'; onDo
       <Textarea label={t('notes')} value={v.notes} onChange={(e) => setV({ ...v, notes: e.target.value })} maxLength={500} />
       <Checkbox label={t('allowPartial')} checked={v.allowPartial} onChange={(x) => setV({ ...v, allowPartial: x })} />
       <p className="text-sm">{t('totalAmount')}: <strong className="num">{Math.max(0, total).toLocaleString()}</strong></p>
-      <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onCancel}>{t('cancel')}</Button><Button loading={busy} disabled={!valid} onClick={() => void save()}>{mode === 'bulk' ? t('issueToClass') : t('save')}</Button></div>
+      <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onCancel}>{t('cancel')}</Button><Button loading={busy} disabled={!valid} onClick={() => void save()}>{mode === 'bulk' ? t('issueVouchers') : t('createVoucher')}</Button></div>
     </div>
   );
 }
@@ -163,7 +203,7 @@ function Vouchers() {
   const [filters, setFilters] = useState({ q: '', classroomId: '', status: '', period: '', overdue: '' });
   const list = usePaged<VoucherRow>(`/api/fees/vouchers${qs({ page, pageSize: 25, ...filters })}`);
   const summary = useGet<Summary>('/api/fees/summary');
-  const [form, setForm] = useState<'single' | 'bulk' | null>(null);
+  const [form, setForm] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const m = useMsg();
   const refresh = useAction(async () => undefined, ['/api/fees']);
@@ -180,15 +220,19 @@ function Vouchers() {
       {m.msg && <Alert kind={m.msg.kind}>{m.msg.text}</Alert>}
       <Card padded={false} title={t('vouchers')} actions={can('fees.manage') && <>
         <Button variant="secondary" loading={reminders.isPending} onClick={() => reminders.mutate(undefined, { onSuccess: (r) => (r.reason ? m.ok(`${t('remindersQueued', { n: r.queued })} (${r.reason})`) : m.ok(t('remindersQueued', { n: r.queued }))), onError: (e) => m.fail(e, t('errorGeneric')) })}><BellRing className="h-4 w-4" />{t('sendRemindersNow')}</Button>
-        <Button variant="secondary" onClick={() => setForm('bulk')}><UsersIcon className="h-4 w-4" />{t('issueToClass')}</Button>
-        <Button onClick={() => setForm('single')}><Plus className="h-4 w-4" />{t('newVoucher')}</Button>
+        <Button onClick={() => setForm(true)}><Plus className="h-4 w-4" />{t('newFeeVoucher')}</Button>
       </>}>
-        <div className="grid gap-3 border-b border-surface-line p-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="flex flex-wrap gap-2 border-b border-surface-line px-4 pt-4" role="tablist">
+          {([['', '', 'filterAll', 'bg-brand text-white'], ['unpaid', '', 'filterUnpaid', 'bg-red-600 text-white'], ['partial', '', 'filterPartial', 'bg-amber-500 text-white'], ['paid', '', 'filterPaid', 'bg-emerald-600 text-white'], ['', 'true', 'filterOverdue', 'bg-rose-700 text-white']] as const).map(([st, od, label, activeCls]) => {
+            const active = filters.status === st && filters.overdue === od;
+            return <button key={label} type="button" role="tab" aria-selected={active} onClick={() => { setFilters({ ...filters, status: st, overdue: od }); setPage(1); }}
+              className={clsx('rounded-full px-4 py-2 text-sm font-semibold transition', active ? activeCls : 'bg-surface-muted text-ink-soft hover:bg-surface-sunken')}>{t(label)}</button>;
+          })}
+        </div>
+        <div className="grid gap-3 border-b border-surface-line p-4 sm:grid-cols-2 lg:grid-cols-3">
           <Input type="search" aria-label={t('search')} placeholder={`${t('search')}: ${t('name')} / ${t('voucherNo')}`} value={filters.q} onChange={(e) => setF('q', e.target.value)} />
           <Select aria-label={t('classroom')} value={filters.classroomId} onChange={(e) => setF('classroomId', e.target.value)} placeholder={`${t('classroom')}: ${t('all')}`} options={classroomOptions(rooms.data?.data)} />
-          <Select aria-label={t('status')} value={filters.status} onChange={(e) => setF('status', e.target.value)} placeholder={`${t('status')}: ${t('all')}`} options={(['unpaid', 'partial', 'paid', 'cancelled'] as const).map((x) => ({ value: x, label: t(x) }))} />
           <Input aria-label={t('feePeriod')} type="month" value={filters.period} onChange={(e) => setF('period', e.target.value)} />
-          <Checkbox label={t('overdue')} checked={filters.overdue === 'true'} onChange={(x) => setF('overdue', x ? 'true' : '')} />
         </div>
         {list.isLoading ? <Spinner /> : list.isError ? <div className="p-5"><Alert kind="error">{errorMessage(list.error, t('errorGeneric'))}</Alert></div> : !list.data?.items.length ? <EmptyState /> : (
           <>
@@ -209,8 +253,8 @@ function Vouchers() {
           </>
         )}
       </Card>
-      <Modal open={Boolean(form)} onClose={() => setForm(null)} title={form === 'bulk' ? t('issueToClass') : t('newVoucher')} wide>
-        {form && <VoucherForm mode={form} onCancel={() => setForm(null)} onDone={(text) => { setForm(null); m.ok(text); refresh.mutate(undefined); }} />}
+      <Modal open={form} onClose={() => setForm(false)} title={t('newFeeVoucher')} wide>
+        {form && <VoucherForm onCancel={() => setForm(false)} onDone={(text) => { setForm(false); m.ok(text); refresh.mutate(undefined); }} />}
       </Modal>
       {open && <VoucherDetailModal id={open} onClose={() => { setOpen(null); refresh.mutate(undefined); }} />}
     </div>
@@ -305,12 +349,12 @@ function FeeSettings() {
 
 export default function Fees() {
   const t = useT();
-  const [tab, setTab] = useState<'vouchers' | 'payments' | 'settings'>('vouchers');
+  const [tab, setTab] = useState<'unpaid' | 'vouchers' | 'payments' | 'settings'>('unpaid');
   return (
     <div>
       <PageHeader title={t('navFees')} />
-      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'vouchers', label: t('vouchers') }, { value: 'payments', label: t('paymentHistory') }, { value: 'settings', label: t('feeSettings') }]} />
-      {tab === 'vouchers' && <Vouchers />}{tab === 'payments' && <Payments />}{tab === 'settings' && <FeeSettings />}
+      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'unpaid', label: t('unpaidFeesTab') }, { value: 'vouchers', label: t('vouchers') }, { value: 'payments', label: t('paymentHistory') }, { value: 'settings', label: t('feeSettings') }]} />
+      {tab === 'unpaid' && <UnpaidFees />}{tab === 'vouchers' && <Vouchers />}{tab === 'payments' && <Payments />}{tab === 'settings' && <FeeSettings />}
     </div>
   );
 }

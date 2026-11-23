@@ -27,7 +27,8 @@ const feeSettingsSchema = new Schema({
   currency: { type: String, default: 'PKR' },
   reminderDaysBefore: { type: Number, default: 3, min: 0, max: 60 },
   remindersEnabled: { type: Boolean, default: false },
-  voucherFooter: String
+  voucherFooter: String,
+  whatsappTemplate: String
 }, { _id: false });
 
 const websiteSchema = new Schema({

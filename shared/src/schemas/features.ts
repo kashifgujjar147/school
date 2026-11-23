@@ -62,7 +62,9 @@ export const feeSettingsSchema = z.object({
   currency: z.string().regex(/^[A-Z]{3}$/),
   reminderDaysBefore: z.number().int().min(0).max(60),
   remindersEnabled: z.boolean(),
-  voucherFooter: optText(300)
+  voucherFooter: optText(300),
+  /** Message for the free WhatsApp (click-to-chat) fee reminders. Placeholders: see FEE_WHATSAPP_FIELDS. */
+  whatsappTemplate: optText(1000)
 }).partial();
 
 // ---------------------------------------------------------------- Exams & results

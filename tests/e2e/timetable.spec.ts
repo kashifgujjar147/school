@@ -166,6 +166,9 @@ test('student portal account: sign in and see only the class timetable', async (
   await expect(sp).toHaveURL(/\/login/);
   await signIn(sp, 'ali.student', pw, '/student/login');
   await expect(sp).toHaveURL(/\/student$/);
+  // The portal opens on the student's home page; the timetable has its own page.
+  await expect(sp.getByRole('heading', { level: 1, name: /Welcome, DEMO/ })).toBeVisible();
+  await sp.goto('/student/timetable');
   await expect(sp.getByRole('heading', { level: 1, name: 'My class timetable' })).toBeVisible();
   // Phones open on the Day view (today only); the week view shows every lesson.
   await expect(sp.getByRole('tab', { name: /Today/ })).toBeVisible();

@@ -60,3 +60,37 @@ export function isDueForReminder(dueDate: string, today: string, daysBefore: num
   const now = Date.parse(today + 'T00:00:00Z');
   return due - now <= daysBefore * 86_400_000;
 }
+
+// ------------------------------------------------------------------ Free WhatsApp fee reminders
+/**
+ * Fee reminders through WhatsApp click-to-chat (https://wa.me/<number>?text=<message>): free, no API,
+ * no account with Meta. WhatsApp opens the parent's chat with the message already typed and the
+ * school taps Send. Nothing is sent automatically, so there is no risk of the number being banned.
+ */
+export const FEE_WHATSAPP_FIELDS = ['parent', 'student', 'class', 'amount', 'due', 'months', 'school'] as const;
+export type FeeWhatsappValues = Record<(typeof FEE_WHATSAPP_FIELDS)[number], string>;
+
+export const DEFAULT_FEE_WHATSAPP_TEMPLATE = [
+  'Assalam-o-Alaikum {parent},',
+  '',
+  'This is a reminder from {school} that the fee of {student} ({class}) has not been paid yet.',
+  'Amount due: {amount}',
+  'Month(s): {months}',
+  'Due date: {due}',
+  '',
+  'Please pay at the school office at your earliest convenience. If you have already paid, please ignore this message. Thank you.',
+  '',
+  'محترم والدین، {student} ({class}) کی فیس {amount} ابھی تک ادا نہیں ہوئی۔ براہِ کرم جلد از جلد اسکول آفس میں جمع کروائیں۔ شکریہ',
+  '{school}'
+].join('\n');
+
+/** Fills {placeholders}; unknown placeholders are left as typed. */
+export function renderFeeWhatsapp(template: string | null | undefined, values: FeeWhatsappValues): string {
+  const tpl = template && template.trim() ? template : DEFAULT_FEE_WHATSAPP_TEMPLATE;
+  return tpl.replace(/\{(\w+)\}/g, (m, k: string) => ((FEE_WHATSAPP_FIELDS as readonly string[]).includes(k) ? values[k as keyof FeeWhatsappValues] : m));
+}
+
+/** Click-to-chat link. `digits` is the international number without "+" (e.g. 923001234567). */
+export function whatsappLink(digits: string, text: string): string {
+  return `https://wa.me/${digits.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
+}

@@ -198,7 +198,8 @@ describe('site configuration: navigation, theme, languages, publish', () => {
     const r = await p.patch('/api/website/site/theme', { value: theme, version: site.version });
     expect(r.status).toBe(200);
     expect(r.body.data.dirty).toBe(true);
-    expect((await pub('/bootstrap')).body.data.site.theme.primary).toBe('#1e3a5f');
+    // Still the published default (the school's navy brand colour) until the draft is published.
+    expect((await pub('/bootstrap')).body.data.site.theme.primary).toBe('#1c1f5e');
     expect((await p.post('/api/website/site/publish')).status).toBe(200);
     expect((await pub('/bootstrap')).body.data.site.theme.primary).toBe('#0f3d33');
     // Controlled design tokens only.

@@ -2,11 +2,11 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import {
-  balanceMinor, feeSettingsSchema, isoDate, manualPaymentSchema, paymentProviderSchema, schoolDate, voucherBulkSchema,
+  balanceMinor, feeSettingsSchema, isoDate, manualPaymentSchema, normalizePhone, paymentProviderSchema, schoolDate, voucherBulkSchema, whatsappRecipient,
   voucherCreateSchema, voucherListSchema, voucherTotal
 } from '@sms/shared';
 import { env, isTest } from '../config/env.js';
-import { Classroom, FeePayment, FeeVoucher, PaymentIntent, SchoolSettings, SecretSettings, Student, User } from '../models/index.js';
+import { AuditLog, Classroom, FeePayment, FeeVoucher, Guardian, PaymentIntent, SchoolSettings, SecretSettings, Student, StudentGuardian, User } from '../models/index.js';
 import { can, canAny, requireFeature } from '../middleware/auth.js';
 import { idempotent } from '../middleware/idempotency.js';
 import { encryptJson } from '../security/crypto.js';
@@ -233,6 +233,71 @@ feesRouter.delete('/provider', can('payments.configure'), h(async (req, res) => 
   await SecretSettings.deleteOne({ _id: 'payments' });
   await audit(req, 'payments.provider_cleared', 'payment_provider');
   ok(res, { cleared: true, nowUsing: 'environment' });
+}));
+
+// ------------------------------------------------------------------ Unpaid fees (defaulters) + free WhatsApp reminders
+/**
+ * One row per student who still owes money (unpaid or partly paid vouchers), with the parent's
+ * phone for a WhatsApp click-to-chat reminder and when the school last sent one. The message itself
+ * is opened in WhatsApp on the staff member's own phone/computer; nothing is sent from the server.
+ */
+feesRouter.get('/defaulters', can('fees.view'), h(async (req, res) => {
+  const q = parse(z.object({ classroomId: z.string().uuid().optional(), q: z.string().trim().max(100).optional(), overdue: z.enum(['true', 'false']).optional() }), req.query);
+  const t = await today();
+  const settings = await getSettings();
+  const filter: Record<string, unknown> = { deletedAt: null, status: $in(['unpaid', 'partial']) };
+  if (q.classroomId) filter.classroomId = q.classroomId;
+  if (q.overdue === 'true') filter.dueDate = $cmp({ lt: t });
+  const vouchers = await FeeVoucher.find(filter).sort({ dueDate: 1 }).select('studentId classroomId voucherNumber title period dueDate totalMinor paidMinor currency').lean();
+  let studentIds = [...new Set(vouchers.map((v) => v.studentId))];
+  const sFilter: Record<string, unknown> = { _id: $in(studentIds), deletedAt: null };
+  if (q.q) { const rx = new RegExp(escapeRegex(q.q), 'i'); sFilter.$or = [{ fullName: rx }, { admissionNumber: rx }]; }
+  const students = await Student.find(sFilter).select('fullName admissionNumber classroomId primaryGuardianPhone emergencyContactName emergencyContactPhone').lean();
+  studentIds = students.map((s) => s._id);
+  const [rooms, links, sent] = await Promise.all([
+    Classroom.find({ _id: $in([...new Set(students.map((s) => s.classroomId))]) }).select('name').lean(),
+    StudentGuardian.find({ studentId: $in(studentIds), deletedAt: null }).lean(),
+    AuditLog.aggregate<{ _id: string; at: Date }>([
+      { $match: { action: 'fee.whatsapp_reminder', entity: 'student', entityId: $in(studentIds) } },
+      { $group: { _id: '$entityId', at: { $max: '$at' } } }
+    ])
+  ]);
+  const guardians = await Guardian.find({ _id: $in([...new Set(links.map((l) => l.guardianId))]), deletedAt: null }).select('fullName phone').lean();
+  const cc = settings.defaultCountryCode ?? '92';
+  const rows = students.map((s) => {
+    const mine = vouchers.filter((v) => v.studentId === s._id);
+    // Parent to message: primary guardian, then any guardian who receives alerts, then the phone on the student record.
+    const myLinks = links.filter((l) => l.studentId === s._id).sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || Number(b.receivesAlerts) - Number(a.receivesAlerts));
+    const g = myLinks.map((l) => guardians.find((x) => x._id === l.guardianId)).find((x) => x?.phone);
+    const rawPhone = g?.phone ?? s.primaryGuardianPhone ?? s.emergencyContactPhone ?? null;
+    const e164 = rawPhone ? normalizePhone(rawPhone, cc) : null;
+    return {
+      studentId: s._id, fullName: s.fullName, admissionNumber: s.admissionNumber,
+      classroomId: s.classroomId, classroomName: rooms.find((r) => r._id === s.classroomId)?.name ?? '',
+      balanceMinor: mine.reduce((a, v) => a + balanceMinor(v.totalMinor, v.paidMinor), 0),
+      currency: mine[0]?.currency ?? settings.fees?.currency ?? 'PKR',
+      oldestDueDate: mine[0]?.dueDate ?? null,
+      overdue: mine.some((v) => v.dueDate < t),
+      vouchers: mine.map((v) => ({ _id: v._id, voucherNumber: v.voucherNumber, title: v.title, period: v.period, dueDate: v.dueDate, balanceMinor: balanceMinor(v.totalMinor, v.paidMinor) })),
+      parentName: g?.fullName ?? (g ? '' : s.emergencyContactName ?? ''),
+      phone: rawPhone, whatsapp: e164 ? whatsappRecipient(e164) : null,
+      lastRemindedAt: sent.find((x) => x._id === s._id)?.at ?? null
+    };
+  }).sort((a, b) => a.classroomName.localeCompare(b.classroomName) || a.fullName.localeCompare(b.fullName));
+  ok(res, {
+    today: t, schoolName: settings.name, template: settings.fees?.whatsappTemplate ?? null,
+    currency: settings.fees?.currency ?? 'PKR',
+    totals: { students: rows.length, balanceMinor: rows.reduce((a, r) => a + r.balanceMinor, 0), overdue: rows.filter((r) => r.overdue).length, noPhone: rows.filter((r) => !r.whatsapp).length },
+    rows
+  });
+}));
+
+/** Records that a WhatsApp reminder was opened for this student's parent (shown as "Sent today"). */
+feesRouter.post('/defaulters/:studentId/whatsapp', can('fees.manage'), h(async (req, res) => {
+  const studentId = idParam(req.params.studentId);
+  if (!(await Student.exists({ _id: studentId, deletedAt: null }))) throw notFound('Student not found');
+  await audit(req, 'fee.whatsapp_reminder', 'student', studentId);
+  ok(res, { at: new Date() });
 }));
 
 feesRouter.post('/reminders/run', can('fees.manage'), h(async (req, res) => {

@@ -26,7 +26,7 @@ export function warmupUrls(user: SessionUser, pkg?: string, tz?: string): string
   add('attendance.view_all', `/api/attendance/status?date=${d}`);
   add('corrections.review', '/api/attendance/corrections?status=pending');
   if (pkg === 'standard') add('guardians.view', '/api/guardians?page=1&pageSize=25');
-  add('fees.view', '/api/fees/summary', '/api/fees/vouchers?page=1&pageSize=25', '/api/fees/settings');
+  add('fees.view', '/api/fees/summary', '/api/fees/defaulters', '/api/fees/vouchers?page=1&pageSize=25', '/api/fees/settings');
   add('exams.view', '/api/exams');
   add('homework.view', '/api/homework');
   add('settings.view', '/api/settings', `/api/academic/holidays?year=${new Date().getFullYear()}`);
