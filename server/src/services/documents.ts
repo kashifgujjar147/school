@@ -209,49 +209,130 @@ export interface IdCardInput { fullName: string; admissionNumber: string; classN
 const CARD_W = 242.65; const CARD_H = 153.07;
 
 async function drawCard(doc: Doc, c: IdCardInput, s: Settings, x: number, y: number) {
-  const brand = s.primaryColor;
-  doc.save();
-  doc.roundedRect(x, y, CARD_W, CARD_H, 8).lineWidth(0.6).strokeColor('#bbb').stroke();
-  // Header band
-  doc.save().roundedRect(x, y, CARD_W, 34, 8).clip().rect(x, y, CARD_W, 34).fill(brand).restore();
+  const W = CARD_W; const H = CARD_H; const R = 9;
+  const navy = hex(s.primaryColor, '#1c1f5e'); const deep = shade(navy, -0.45); const sky = hex(s.accentColor, '#29abe2');
+  const ink = '#12153d'; const muted = '#7a809b';
+  const custom = Boolean(process.env.REPORT_FONT_PATH && existsSync(process.env.REPORT_FONT_PATH));
+  const bold = custom ? 'body' : 'Helvetica-Bold'; const reg = custom ? 'body' : 'Helvetica';
+  const [schoolMain, schoolSub] = splitName(s.name);
   const logo = drawableUpload(s.logoPath);
-  let tx = x + 8;
-  if (logo) { try { doc.image(logo, x + 6, y + 5, { fit: [24, 24] }); tx = x + 34; } catch { /* unsupported */ } }
-  doc.fillColor('#fff').fontSize(9.5).text(s.name, tx, y + 7, { width: CARD_W - (tx - x) - 8, lineBreak: false, ellipsis: true });
-  doc.fontSize(6.5).text('STUDENT IDENTITY CARD', tx, y + 20, { width: CARD_W - (tx - x) - 8, lineBreak: false });
-  // Photo
-  const px = x + 8; const py = y + 42; const pw = 58; const ph = 72;
-  doc.rect(px, py, pw, ph).lineWidth(0.5).strokeColor('#ccc').stroke();
+
+  doc.save();
+  // Card shape: everything below is clipped to the rounded card, so nothing can spill outside it.
+  doc.roundedRect(x, y, W, H, R).clip();
+  doc.rect(x, y, W, H).fill(doc.linearGradient(x, y, x, y + H).stop(0, '#ffffff').stop(1, '#eef2f8'));
+
+  // Faint emblem watermark behind the details.
+  if (logo) { try { doc.save().opacity(0.045).image(logo, x + W / 2 - 30, y + 52, { fit: [92, 92] }).restore(); } catch { doc.restore(); } }
+
+  // Header: navy gradient, soft rings, sky hairline.
+  const HH = 40;
+  doc.rect(x, y, W, HH).fill(doc.linearGradient(x, y, x + W, y + HH).stop(0, deep).stop(1, navy));
+  doc.save().opacity(0.08).lineWidth(7).strokeColor('#ffffff').circle(x + W - 16, y + 2, 34).stroke()
+    .lineWidth(1).circle(x + W - 16, y + 2, 52).stroke().restore();
+  doc.rect(x, y + HH, W, 1.6).fill(sky);
+
+  // Logo medallion.
+  const lx = x + 22; const ly = y + HH / 2; const lr = 14;
+  doc.circle(lx, ly, lr + 1.2).fill(sky);
+  doc.circle(lx, ly, lr).fill('#ffffff');
+  if (logo) {
+    const li = lr - 1.4;
+    try { doc.save().circle(lx, ly, lr - 0.6).clip().image(logo, lx - li, ly - li, { fit: [li * 2, li * 2], align: 'center', valign: 'center' }).restore(); } catch { doc.restore(); }
+  }
+  const tx = x + 42; const tw = W - (tx - x) - 10;
+  const main = schoolMain.toUpperCase();
+  doc.font(bold).fillColor('#ffffff').fontSize(fitSize(doc, main, tw, 8.2, 5.5, 0.4)).text(main, tx, y + 9, { width: tw, lineBreak: false, ellipsis: true, characterSpacing: 0.4 });
+  doc.font(bold).fillColor(sky).fontSize(5.6).text((schoolSub ?? 'Student identity card').toUpperCase(), tx, y + 20, { width: tw, lineBreak: false, ellipsis: true, characterSpacing: 1.4 });
+  if (schoolSub) doc.font(reg).fillColor('#ffffff').fillOpacity(0.75).fontSize(4.8).text('STUDENT IDENTITY CARD', tx, y + 28.5, { width: tw, lineBreak: false, characterSpacing: 1.6 }).fillOpacity(1);
+
+  // Photo: rounded frame with a sky ring. The image is cover-fitted and clipped to the frame.
+  const px = x + 11; const py = y + HH + 10; const pw = 58; const ph = 72; const pr = 6;
+  doc.roundedRect(px - 2.2, py - 2.2, pw + 4.4, ph + 4.4, pr + 2).lineWidth(0.9).strokeColor(sky).stroke();
+  doc.roundedRect(px, py, pw, ph, pr).fill('#e8ecf4');
   const photo = drawableUpload(c.photoPath);
   let drew = false;
-  if (photo) { try { doc.image(photo, px + 1, py + 1, { cover: [pw - 2, ph - 2], align: 'center', valign: 'center' }); drew = true; } catch { /* unsupported */ } }
+  if (photo) {
+    doc.save();
+    try { doc.roundedRect(px, py, pw, ph, pr).clip().image(photo, px, py, { cover: [pw, ph], align: 'center', valign: 'center' }); drew = true; } catch { /* unsupported */ }
+    doc.restore();
+  }
   if (!drew) {
     const initials = c.fullName.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('');
-    doc.rect(px + 1, py + 1, pw - 2, ph - 2).fill('#eef1f5');
-    doc.fillColor('#8a94a6').fontSize(20).text(initials, px, py + ph / 2 - 12, { width: pw, align: 'center' });
+    doc.roundedRect(px, py, pw, ph, pr).fill(doc.linearGradient(px, py, px, py + ph).stop(0, '#eef1f8').stop(1, '#dbe2ee'));
+    doc.font(bold).fillColor(navy).fillOpacity(0.5).fontSize(20).text(initials, px, py + ph / 2 - 10, { width: pw, align: 'center', lineBreak: false }).fillOpacity(1);
   }
-  // Details
-  const dx = px + pw + 8; const dw = CARD_W - (dx - x) - 66;
-  let dy = py;
-  const field = (label: string, value: string, big = false) => {
-    doc.fillColor('#6b7280').fontSize(5.5).text(label.toUpperCase(), dx, dy, { width: dw, lineBreak: false });
-    dy += 7;
-    doc.fillColor('#111').fontSize(big ? 8.5 : 7.5).text(value, dx, dy, { width: dw, lineBreak: false, ellipsis: true });
-    dy += big ? 12 : 11;
+
+  // Details.
+  const qs = 50; const qx = x + W - qs - 11;
+  const dx = px + pw + 11; const dw = qx - dx - 8;
+  let dy = py + 1;
+  const name = c.fullName.toUpperCase();
+  doc.font(bold).fillColor(navy);
+  const nameSize = fitSize(doc, name, dw - 1, 9.5, 7.4, 0.2);
+  if (doc.fontSize(nameSize).widthOfString(name) + 0.2 * name.length <= dw - 1) {
+    doc.text(name, dx, dy, { width: dw, lineBreak: false, characterSpacing: 0.2 });
+    dy += 12.5;
+  } else {
+    // Long names: two lines at most, never over the details below.
+    doc.fontSize(7).text(name, dx, dy, { width: dw, height: 20, ellipsis: true, lineGap: 0.4, characterSpacing: 0.1 });
+    dy += 19;
+  }
+  doc.rect(dx, dy, 16, 1.4).fill(sky);
+  dy += 6;
+  const field = (label: string, value: string) => {
+    doc.font(bold).fillColor(muted).fontSize(4.6).text(label.toUpperCase(), dx, dy, { width: dw, lineBreak: false, characterSpacing: 1.1 });
+    dy += 6.4;
+    doc.font(bold).fillColor(ink).fontSize(7.2).text(value || '-', dx, dy, { width: dw, lineBreak: false, ellipsis: true });
+    dy += 11.4;
   };
-  field('Name', c.fullName, true);
   field('Admission no.', c.admissionNumber);
   field('Class / Section', [c.className, c.sectionName].filter(Boolean).join(' · '));
   if (c.sessionName) field('Session', c.sessionName);
-  // QR
-  const qr = await QRCode.toBuffer(c.verifyUrl, { type: 'png', errorCorrectionLevel: 'M', margin: 1, width: 240 });
-  doc.image(qr, x + CARD_W - 64, py, { width: 56, height: 56 });
-  doc.fillColor('#6b7280').fontSize(5).text('Scan to verify', x + CARD_W - 64, py + 58, { width: 56, align: 'center' });
-  // Footer
-  doc.rect(x, y + CARD_H - 18, CARD_W, 0.6).fill('#e5e7eb');
-  const foot = [s.phone ? `If found, please call ${s.phone}` : 'If found, please return to the school office', c.validUntil ? `Valid until ${c.validUntil}` : null].filter(Boolean).join('  ·  ');
-  doc.fillColor('#4b5563').fontSize(5.5).text(foot, x + 8, y + CARD_H - 12, { width: CARD_W - 16, align: 'center', lineBreak: false, ellipsis: true });
+
+  // QR on a white tile.
+  const qy = py;
+  doc.roundedRect(qx - 2, qy - 2, qs + 4, qs + 4, 5).fill('#ffffff');
+  doc.roundedRect(qx - 2, qy - 2, qs + 4, qs + 4, 5).lineWidth(0.5).strokeColor('#d9deea').stroke();
+  const qr = await QRCode.toBuffer(c.verifyUrl, { type: 'png', errorCorrectionLevel: 'M', margin: 0, width: 300, color: { dark: deep, light: '#ffffff' } });
+  doc.image(qr, qx + 2, qy + 2, { width: qs - 4, height: qs - 4 });
+  doc.font(bold).fillColor(muted).fontSize(4.4).text('SCAN TO VERIFY', qx - 6, qy + qs + 6, { width: qs + 12, align: 'center', lineBreak: false, characterSpacing: 0.9 });
+
+  // Footer band.
+  const fh = 15; const fy = y + H - fh;
+  doc.rect(x, fy, W, fh).fill(doc.linearGradient(x, fy, x + W, fy).stop(0, navy).stop(1, deep));
+  doc.rect(x, fy, W, 0.9).fill(sky);
+  const left = c.validUntil ? `VALID UNTIL  ${c.validUntil}` : 'STUDENT IDENTITY CARD';
+  const right = s.phone ? `IF FOUND, PLEASE CALL  ${s.phone}` : 'IF FOUND, RETURN TO THE SCHOOL OFFICE';
+  // Both footer lines are sized to fit one line: a wrapped line would fall off the card (and add a page).
+  const lw = 92; const rw = W - 22 - lw - 6;
+  doc.font(bold).fillColor('#ffffff').fontSize(fitSize(doc, left, lw - 2, 4.8, 3.6, 0.8)).text(left, x + 11, fy + 5.6, { width: lw, lineBreak: false, characterSpacing: 0.8 });
+  doc.font(reg).fillColor('#ffffff').fillOpacity(0.85).fontSize(fitSize(doc, right, rw - 2, 4.8, 3.6, 0.4)).text(right, x + W - 11 - rw, fy + 5.6, { width: rw, align: 'right', lineBreak: false, characterSpacing: 0.4 }).fillOpacity(1);
   doc.restore();
+
+  // Hairline edge, outside the clip so it stays crisp.
+  doc.roundedRect(x + 0.25, y + 0.25, W - 0.5, H - 0.5, R).lineWidth(0.5).strokeColor('#cfd5e3').stroke();
+}
+
+const hex = (v: string | null | undefined, fallback: string) => (v && /^#[0-9a-f]{6}$/i.test(v) ? v : fallback);
+/** Darken (amt < 0) or lighten (amt > 0) a #rrggbb colour. */
+function shade(c: string, amt: number) {
+  const n = parseInt(c.slice(1), 16);
+  const ch = (v: number) => Math.round(amt < 0 ? v * (1 + amt) : v + (255 - v) * amt).toString(16).padStart(2, '0');
+  return `#${ch(n >> 16)}${ch((n >> 8) & 255)}${ch(n & 255)}`;
+}
+/** "The Alpha School System — 47 Campus" → ["The Alpha School System", "47 Campus"]. */
+function splitName(name: string): [string, string | null] {
+  const parts = name.trim().split(/\s+[—–|·-]\s+/);
+  return parts.length > 1 ? [parts[0]!, parts.slice(1).join(' · ')] : [name.trim(), null];
+}
+/** Largest font size (max → min) at which a single line of text fits the width. */
+function fitSize(doc: Doc, text: string, width: number, max: number, min: number, spacing = 0) {
+  for (let size = max; size > min; size -= 0.25) {
+    doc.fontSize(size);
+    if (doc.widthOfString(text) + spacing * text.length <= width) return size;
+  }
+  return min;
 }
 
 /**
