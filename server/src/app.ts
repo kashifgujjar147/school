@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import express, { Router } from 'express';
@@ -27,7 +28,7 @@ import { studentAccountsRouter, studentRouter } from './modules/student.routes.j
 import { timetableRouter } from './modules/timetable.routes.js';
 import { feesRouter, paymentWebhookRouter } from './modules/fees.routes.js';
 import { examsRouter, feedbackRouter, homeworkRouter } from './modules/academics.routes.js';
-import { idCardsRouter, verifyRouter } from './modules/idcards.routes.js';
+import { idCardsRouter, verifyPageRouter, verifyRouter } from './modules/idcards.routes.js';
 import { analyticsRouter } from './modules/analytics.routes.js';
 import { backupsRouter } from './modules/backups.routes.js';
 import { healthRouter, systemRouter } from './modules/system.routes.js';
@@ -139,6 +140,11 @@ export function createApp() {
       } catch (e) { next(e); }
     });
     app.get('*', (_req, res) => { res.setHeader('Cache-Control', 'no-cache'); res.sendFile(shell); });
+  } else {
+    // API-only service (the web app is served elsewhere): a scanned ID-card QR code that points here
+    // still gets a verification page, with the school logo from the bundled brand assets.
+    app.use('/brand', express.static(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../assets/brand'), { maxAge: '7d', index: false }));
+    app.use('/verify', verifyPageRouter);
   }
 
   app.use(errorHandler);
